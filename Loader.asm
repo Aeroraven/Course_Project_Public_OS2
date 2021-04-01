@@ -582,11 +582,20 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	mov ebp,DSP_TEST
 	call FUNC_CGADisplayStringPM
 
+	BREAK_PT
 	call FUNC_MemoryPaging
+	
+
+	call FUNC_DisplayNewLinePM
+	mov ah, 2Fh
+	mov ebp,DSP_TEST
+	call FUNC_CGADisplayStringPM
+
 	call FUNC_RearrangeKernel
 
 
-	jmp $
+	BREAK_PT
+	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
 
 
@@ -771,7 +780,7 @@ FUNC_MemoryCopy:
 	mov ecx,[ebp+16]
 LABEL_FUNC_MemoryCopy_Loop:
 	push eax
-	mov eax,[es,edi]
+	mov eax,[es:edi]
 	inc edi
 	mov [ds:esi],eax
 	inc esi
@@ -797,7 +806,7 @@ FUNC_MemoryPaging:
 	inc	ecx		
 .no_remainder:
 	push ecx		
-	mov	ax, DESC_GENERAL_DATA
+	mov	ax, SELECTOR_GENERAL_DATA
 	mov	es, ax
 	mov	edi, CONST_MEMORY_PageDirBase	
 	xor	eax, eax

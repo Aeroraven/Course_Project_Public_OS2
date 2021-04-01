@@ -156,7 +156,7 @@ CONST_KERNEL_BaseAddr				equ 0x7000				;Kernel 加载段地址
 CONST_KERNEL_OffsetAddr				equ 0x0					;Kernel 加载地址偏移
 CONST_KERNEL_BasePhyAddr			equ CONST_KERNEL_BaseAddr * 0x10 ;Kernel 加载段地址物理地址	
 
-
+CONST_KERNEL_Entry					equ 0x30400				;Kernel 入口地址
 
 ;----------------------------------			
 ; 杂项
