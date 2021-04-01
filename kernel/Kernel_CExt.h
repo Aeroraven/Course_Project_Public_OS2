@@ -8,10 +8,15 @@
 // --------------------------------------------------------------
 
 #include "Kernel_CDef.h"
+#include "Kernel_IncFunc.h"
 
-//输出设置
+//----------------------------
+//    输出设置
+//----------------------------
+
 CONST DWORD CGA_COLMAX = 80; //CGA最大行
 CONST UBYTE CGA_DEFAULT_COLOR = 0x3f;
+
 
 //【KCEX_PrintChar】
 // 打印字符
@@ -67,4 +72,50 @@ VOID KCEX_PrintByteHex(UBYTE arg) {
 	convStr[2] = ' ';
 	convStr[3] = '\0';
 	KCEX_PrintString(convStr);
+}
+
+//【KCEX_Strlen】
+// 测量一个字符串长度
+// 参数：UBYTE* 字符串
+DWORD KCEX_Strlen(UBYTE* str) 
+{
+	DWORD len = 0;
+	while (*str != '\0') {
+		len++;
+		str++;
+	}
+	return len;
+}
+
+//----------------------------
+//    功能性函数
+//----------------------------
+
+//【KCEX_IntToChar】
+// 将数字转化为字符串
+CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
+	CHAR base_map[16] = { '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
+	if (base > 16 || base <= 1)
+		return str;
+	DWORD b = 1, x = 0;
+	while (num / (DWORD)base > 0) {
+		b *= base;
+		x++;
+	}
+	CHAR* i = str;
+	while (x>=0) {
+		(*i) = base_map[num / b];
+		num = num % b;
+		b /= base;
+		x--;
+		i++;
+	}
+	return str;
+}
+
+//【KCEX_PutChar】
+// 打印字符
+DWORD KCEX_PutChar(DWORD ch) {
+	AF_DispChar(ch, CGA_DEFAULT_COLOR_W);
+	return ch;
 }

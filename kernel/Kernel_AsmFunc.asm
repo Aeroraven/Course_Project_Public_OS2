@@ -64,10 +64,14 @@ DSPPOS					dd 0
 ;导出函数
 global AF_MemoryCopy
 global AF_LoadGlobalDescriptorTable
+global AF_LoadInterruptDescriptorTable
 global AF_SaveGlobalDescriptorTable
 global AF_VMBreakPoint
 global AF_DispChar
 global AF_GetDispPos
+
+global AF_OutPort
+global AF_InPort
 
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
@@ -110,8 +114,21 @@ AF_LoadGlobalDescriptorTable:
 	push ebp
 	mov ebp,esp
 	push esi
-	mov esi,[ebp+8]
-	lgdt [ds:esi]
+	mov eax,[ebp+8]
+	lgdt [eax]
+	pop esi
+	mov esp,ebp
+	pop ebp
+	xor eax,eax
+	ret
+
+
+AF_LoadInterruptlDescriptorTable:
+	push ebp
+	mov ebp,esp
+	push esi
+	mov eax,[ebp+8]
+	lidt [eax]
 	pop esi
 	mov esp,ebp
 	pop ebp
@@ -176,4 +193,22 @@ AF_GetDispPos:
 	mov [ds:esi],edx
 	mov eax,[DSPPOS]
 	pop ebp
+	ret
+
+;函数AF_OutPort [保护模式] - 端口输出
+AF_Outport:
+	mov edx, [esp+4]
+	mov al,[esp+8]
+	out dx,al
+	nop
+	nop
+	ret
+
+;函数AF_InPort [保护模式] - 端口输入
+AF_InPort:
+	mov edx, [esp+4]
+	mov al,[esp+8]
+	in al,dx
+	nop
+	nop
 	ret
