@@ -12,6 +12,8 @@
 //	函数导入(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------
 #include "Kernel_CDef.h"
+
+
 // 【AF_MemoryCopy】
 // 内存复制
 // 参数: ANYPTR destPtr 目标指针
@@ -66,6 +68,13 @@ VOID AF_DispChar(UDWORD ch, UDWORD style);
 // 返回：VOID
 UDWORD AF_GetDispPos(UDWORD* dspPos);
 
+// 【AF_SetDispPos】
+// 设置输出位置
+// 参数: UDWORD dspPos 输出位置 
+// 返回：VOID
+UDWORD AF_SetDispPos(UDWORD dspPos);
+
+
 //【AF_OutPort】
 // 端口输出，Out指令
 // 参数：UWORD port 端口号
@@ -76,3 +85,29 @@ VOID AF_OutPort(UWORD port, UBYTE value);
 // 端口输入，In指令
 // 参数：UWORD port 端口号
 UBYTE AF_InPort(UWORD port);
+
+
+//----------------------------------------
+//	异常中断(函数定义在 Kernel_AsmFunc.asm中)
+//----------------------------------------
+
+VOID AFE_EXCEPTION_DE();
+VOID AFE_EXCEPTION_DB();
+VOID AFE_EXCEPTION_NMI();
+VOID AFE_EXCEPTION_BP();
+VOID AFE_EXCEPTION_OF();
+VOID AFE_EXCEPTION_BR();
+VOID AFE_EXCEPTION_UD();
+VOID AFE_EXCEPTION_NM();
+VOID AFE_EXCEPTION_DF();
+VOID AFE_EXCEPTION_MF();
+VOID AFE_EXCEPTION_TS();
+VOID AFE_EXCEPTION_NP();
+VOID AFE_EXCEPTION_SS();
+VOID AFE_EXCEPTION_GP();
+VOID AFE_EXCEPTION_PF();
+VOID AFE_EXCEPTION_RSVD();
+VOID AFE_EXCEPTION_MF2();
+VOID AFE_EXCEPTION_AC();
+VOID AFE_EXCEPTION_MC();
+VOID AFE_EXCEPTION_XM();

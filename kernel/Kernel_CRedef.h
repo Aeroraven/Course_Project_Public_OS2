@@ -15,6 +15,8 @@
 #define memcpy AF_MemoryCopy
 #define itoa KCEX_IntToChar
 #define putchar KCEX_PutChar
+#define printf KCEX_PrintFormat
+#define memset KCEX_MemoryFill
 #define max(a,b) ((a>b)?(a):(b))
 #define min(a,b) ((a<b)?(a):(b))
 
