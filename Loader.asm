@@ -780,11 +780,13 @@ FUNC_MemoryCopy:
 	mov ecx,[ebp+16]
 LABEL_FUNC_MemoryCopy_Loop:
 	push eax
-	mov eax,[es:edi]
+	mov al,byte [es:edi]
 	inc edi
-	mov [ds:esi],eax
+	mov byte [ds:esi],al
 	inc esi
+	pop eax
 	loop LABEL_FUNC_MemoryCopy_Loop
+
 	pop ecx
 	pop edi
 	pop esi
@@ -853,7 +855,9 @@ FUNC_RearrangeKernel:
 	add	eax, CONST_KERNEL_BasePhyAddr
 	push eax
 	push dword [esi + 08h]
+	BREAK_PT
 	call FUNC_MemoryCopy
+	BREAK_PT
 	add	esp, 12	
 .NoAction:
 	add	esi, 020h
