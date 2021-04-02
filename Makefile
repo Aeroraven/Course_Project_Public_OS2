@@ -3,7 +3,9 @@ load:
 	
 	nasm -o boot.bin boot.asm
 	nasm -o loader.bin loader.asm
-	nasm -o kernel.bin kernel.asm
+	nasm -f elf -o kernel.o kernel.asm
+	ld -m elf_i386 -s -Ttext 0x30400 -o kernel.bin kernel.o
+
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
 	sudo mount -o loop a.img vdisk/
 	sudo rm -f vdisk/loader.bin
