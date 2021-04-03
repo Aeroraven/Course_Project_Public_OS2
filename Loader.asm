@@ -577,28 +577,11 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	call FUNC_CGADisplayIntPM
 
 	call FUNC_DisplayNewLinePM
-
 	mov ah, 2Fh
 	mov ebp,DSP_TEST
 	call FUNC_CGADisplayStringPM
-
-	BREAK_PT
 	call FUNC_MemoryPaging
-	
-
-	call FUNC_DisplayNewLinePM
-	mov ah, 2Fh
-	mov ebp,DSP_TEST
-	call FUNC_CGADisplayStringPM
-
 	call FUNC_RearrangeKernel
-
-	call FUNC_DisplayNewLinePM
-	mov ah, 2Fh
-	mov ebp,DSP_TEST
-	call FUNC_CGADisplayStringPM
-
-	BREAK_PT
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
 

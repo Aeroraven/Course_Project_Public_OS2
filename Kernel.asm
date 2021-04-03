@@ -8,11 +8,17 @@
 
 extern kernel_start
 
+
+[SECTION .bss]
+StackSpace		resb	2 * 1024
+StackTop:		
+
 [SECTION .text]
 
 global _start
 
 _start: 
+	mov	esp, StackTop
 	xchg bx,bx
 	call kernel_start
 	jmp $

@@ -57,13 +57,17 @@
 DBP_DISPLAY_PRINTLINE1		db 0
 DBP_DISPLAY_PRINTCOL1		db 0
 CONST_VIDEO_CGA_COLS		equ 80
-
+DDP_SGDT_ADDR				dd 0
+DSPPOS					dd 0
 [SECTION .text]
 
 ;导出函数
 global AF_MemoryCopy
 global AF_LoadGlobalDescriptorTable
-global AF_DispStrCGA
+global AF_SaveGlobalDescriptorTable
+global AF_VMBreakPoint
+global AF_DispChar
+global AF_GetDispPos
 
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
@@ -114,44 +118,62 @@ AF_LoadGlobalDescriptorTable:
 	xor eax,eax
 	ret
 
-;函数 AF_DispStrCGA [保护模式] - 显示字符串(0作结尾)
-;参数： AH 颜色常量
-;		ES 数据段选择子
-;		PUSH (dd) 字符串地址
-AF_DispStrCGA:
-	xchg bx,bx
+;函数 AF_SaveGlobalDescriptorTable [保护模式] - 储存GDTR
+;参数：	PUSH (dd)GDTR指针
+;		DS   数据段选择子
+;返回:	EAX  0
+;C：		DWORD AF_SaveGlobalDescriptorTable(DWORD gdtPtr)
+AF_SaveGlobalDescriptorTable:
 	push ebp
 	mov ebp,esp
 	push esi
-	;计算EDI
-	xchg bx,bx
+	mov esi,[ebp+8]
 	push eax
 	mov eax,[ebp+8]
-	mov esi,eax
-	xor eax,eax
-	mov al,[DBP_DISPLAY_PRINTLINE1]
-	mov bx,CONST_VIDEO_CGA_COLS
-	mul bx
-	xor cx,cx
-	mov cl,[DBP_DISPLAY_PRINTCOL1]
-	add ax,cx
-	add eax,eax
-	mov edi,eax
+	sgdt [eax]
 	pop eax
-	mov dx,0
-.DISPCGA_1:
-	mov al,[ds:esi]
-	cmp al,0
-	jz .DISPCGA_2
-	mov [gs:edi],ax
-	inc dx
-	inc esi
-	add edi,2
-	jmp .DISPCGA_1
-.DISPCGA_2:
-	mov [DBP_DISPLAY_PRINTCOL1],dl
 	pop esi
 	mov esp,ebp
 	pop ebp
+	xor eax,eax
+	ret
+
+
+;函数 AF_VMBreakPoint [保护模式] - 虚拟机断点(0作结尾)
+AF_VMBreakPoint:
+	push ebp
+	mov ebp,esp
 	xchg bx,bx
+	pop ebp
+	ret
+
+
+;函数 AF_DispChar [保护模式] - 显示字符
+;参数： 
+;		PUSH (dd) 字符
+;		PUSH (dd) 样式
+;		PUSH (dd) 位置
+AF_DispChar:
+	push ebp
+	mov ebp,esp
+	mov ebx,[DSPPOS]
+	mov al,[ebp+8]
+	mov ah,[ebp+12]
+	mov edi,ebx
+	;xchg bx,bx
+	mov [gs:edi],ax
+	pop ebp
+	inc dword [DSPPOS]
+	inc dword [DSPPOS]
+	ret
+
+;函数 AF_DispChar [保护模式] - 保存输出位置
+AF_GetDispPos:
+	push ebp
+	mov ebp,esp
+	mov esi,[ebp+8]
+	mov edx,[DSPPOS]
+	mov [ds:esi],edx
+	mov eax,[DSPPOS]
+	pop ebp
 	ret

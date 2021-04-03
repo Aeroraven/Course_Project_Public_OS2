@@ -24,6 +24,7 @@ typedef void VOID;
 
 typedef char* CCSTRING; //字符串指针
 
+//GDT/IDT描述符
 typedef struct {
 	UWORD limit_low;
 	UWORD base_low;
@@ -31,17 +32,24 @@ typedef struct {
 	UBYTE attr_first;
 	UBYTE limit_high_attr_sec;
 	UBYTE base_high;
-} DESCRIPTOR;
+} DESCRIPTOR;			
+
+
 
 //常用常量
 #define TRUE 1
 #define FALSE 0
 #define NULL 0
 #define NULLPTR 0
+#define CONST const
+#define PUBLIC
+#define STATIC static
+#define PRIVATE STATIC
 
 
 //GDT和IDT常量
 #define GDT_SIZE 128
+#define GDTR_SIZE 6
 
 
 //函数导入(函数定义在 Kernel_AsmFunc.asm中)
@@ -61,9 +69,34 @@ ANYPTR AF_MemoryCopy(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);
 // 返回：UDWORD [eax] 返回0 表示成功
 UDWORD AF_LoadGlobalDescriptorTable(GDTPTR gdtPtr);
 
-
-// 【AF_DispStrCGA】
-// 将文字输出至CGA显存
-// 参数: CCSTRING stringPtr  字符串指针
+// 【AF_LoadGlobalDescriptorTable】
+// 加载GDT至GDTR寄存器
+// 参数: GDTPTR gdtPtr  GDT指针(指针指向6字节内容)
 // 返回：UDWORD [eax] 返回0 表示成功
-VOID AF_DispStrCGA(CCSTRING stringPtr);
+UDWORD AF_LoadGlobalDescriptorTable(GDTPTR gdtPtr);
+
+// 【AF_SaveGlobalDescriptorTable】
+// 保存GDTR寄存器至内存
+// 参数: GDTPTR gdtPtr  GDT指针(指针指向6字节内容)
+// 返回：UDWORD [eax] 返回0 表示成功
+UDWORD AF_SaveGlobalDescriptorTable(GDTPTR gdtPtr);
+
+
+// 【AF_VMBreakPoint】
+// 虚拟机断点，用于产生Bochs断点
+VOID AF_VMBreakPoint();
+
+
+// 【AF_DispChar】
+// 将文字输出至CGA显存
+// 参数: UDWORD ch 字符,请保证在UBYTE范围内
+//		 UDWORD style 样式，请保证在UBYTE范围内
+// 返回：VOID
+VOID AF_DispChar(UDWORD ch, UDWORD style);
+
+
+// 【AF_GetDispPos】
+// 获取输出位置
+// 参数: UDWORD* dspPos 接受返回值的变量 
+// 返回：VOID
+UDWORD AF_GetDispPos(UDWORD* dspPos);
