@@ -3,7 +3,7 @@ load:
 	nasm -o loader.bin loader.asm
 	nasm -f elf -o kernel.o kernel.asm
 	nasm -f elf -o kernel_asmfunc.o Kernel_AsmFunc.asm
-	gcc -m32 -c -o kernel_c.o Kernel_C.c
+	gcc -m32 -c -o kernel_c.o Kernel_C.c -fno-stack-protector -O0
 
 	ld -m elf_i386 -s -Ttext 0x30400 -o kernel.bin kernel.o kernel_asmfunc.o kernel_c.o
 
@@ -14,7 +14,11 @@ load:
 	sudo cp kernel.bin vdisk/
 	sudo umount vdisk/
 
-clean:	
+clean:
+	rm -f kernel.o
+	rm -f kernel_asmfunc.o
+	rm -f kernel_c.o
+	rm -f kernel.bin
 	sudo mount -o loop a.img vdisk/
 	sudo rm -f vdisk/loader.bin
 	sudo rm -f vdisk/kernel.bin
