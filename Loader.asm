@@ -593,6 +593,10 @@ LABEL_PROGRAM_PROTECTMODE_START:
 
 	call FUNC_RearrangeKernel
 
+	call FUNC_DisplayNewLinePM
+	mov ah, 2Fh
+	mov ebp,DSP_TEST
+	call FUNC_CGADisplayStringPM
 
 	BREAK_PT
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
@@ -773,26 +777,22 @@ FUNC_MemoryCopy:
 	push esi
 	push edi
 	push ecx
-	;复制过程[es:edi]->[ds:esi]
-
-	mov esi,[ebp+8] ;DEST, 前面还有EIP和EBP
-	mov edi,[ebp+12];SRC
+	mov edi,[ebp+8] ;DEST, 前面还有EIP和EBP
+	mov esi,[ebp+12];SRC
 	mov ecx,[ebp+16]
+	
 LABEL_FUNC_MemoryCopy_Loop:
-	push eax
-	mov al,byte [es:edi]
-	inc edi
-	mov byte [ds:esi],al
+	mov al, [ds:esi]
 	inc esi
-	pop eax
+	mov byte [es:edi],al
+	inc edi
 	loop LABEL_FUNC_MemoryCopy_Loop
-
+	mov eax,[ebp+8]
 	pop ecx
-	pop edi
 	pop esi
+	pop edi
 	mov esp,ebp
 	pop ebp
-	xor eax,eax
 	ret 
 
 ;函数 MemoryPaging [保护模式] - 内存分页
@@ -837,6 +837,7 @@ FUNC_MemoryPaging:
 .3:
 	nop
 	ret
+
 
 ;函数 RearrangeKernel: 重新整理内核
 ;参考: Forrest Yu
