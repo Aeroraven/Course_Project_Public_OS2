@@ -9,6 +9,7 @@
 
 #include "Kernel_CDef.h"
 #include "Kernel_IncFunc.h"
+#include "Kernel_GlobalVar.h"
 
 //----------------------------
 //    输出设置
@@ -98,10 +99,12 @@ CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
 	if (base > 16 || base <= 1)
 		return str;
 	DWORD b = 1, x = 0;
-	while (num / (DWORD)base > 0) {
+	while (num / (UDWORD)b > 0) {
 		b *= base;
 		x++;
 	}
+	b /= base;
+	x--;
 	CHAR* i = str;
 	while (x>=0) {
 		(*i) = base_map[num / b];
@@ -118,4 +121,89 @@ CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
 DWORD KCEX_PutChar(DWORD ch) {
 	AF_DispChar(ch, CGA_DEFAULT_COLOR_W);
 	return ch;
+}
+
+DWORD KCEX_MemoryFill(CHAR* dest, UBYTE ch, UDWORD size) {
+	CHAR* s = dest;
+	for (UDWORD i = 0; i < size; i++) {
+		(*s) = ch;
+		s++;
+	}
+}
+
+//【KCEX_PrintFormat】(Deprecated)
+// 格式化输出（不安全版本）
+DWORD KCEX_PrintFormat(CHAR* format, ...) {
+	
+	VA_LIST argument_list;
+	CHAR* format_iter = format;
+	VA_START(argument_list, format);
+
+	DWORD t;
+	CHAR t2;
+	CHAR* t3;
+	CHAR buffer[KCEX_PRINTF_BUFFERSIZE];
+
+	while ((*format_iter) != '\0') {
+		if ((*format_iter) == '%') {
+			format_iter++;
+			switch ((*format_iter)) {
+				case 'd': //DEC int
+					t = VA_ARG(argument_list, DWORD);
+					KCEX_MemoryFill(buffer, 0, KCEX_PRINTF_BUFFERSIZE);
+					KCEX_IntToChar(t, buffer, 10);
+					KCEX_PrintString(buffer);
+					break;
+				case 'i': //DEC int
+					t = VA_ARG(argument_list, DWORD);
+					KCEX_MemoryFill(buffer, 0, KCEX_PRINTF_BUFFERSIZE);
+					KCEX_IntToChar(t, buffer, 10);
+					KCEX_PrintString(buffer);
+					break;
+				case 'o': //DEC oct
+					t = VA_ARG(argument_list, DWORD);
+					KCEX_MemoryFill(buffer, 0, KCEX_PRINTF_BUFFERSIZE);
+					KCEX_IntToChar(t, buffer, 8);
+					KCEX_PrintString(buffer);
+					break;
+				case 'x': //DEC hex
+					t = VA_ARG(argument_list, DWORD);
+					KCEX_MemoryFill(buffer, 0, KCEX_PRINTF_BUFFERSIZE);
+					KCEX_IntToChar(t, buffer, 16);
+					KCEX_PrintString(buffer);
+					break;
+				case 'X': //DEC hex
+					t = VA_ARG(argument_list, DWORD);
+					KCEX_MemoryFill(buffer, 0, KCEX_PRINTF_BUFFERSIZE);
+					KCEX_IntToChar(t, buffer, 16);
+					KCEX_PrintString(buffer);
+					break;
+				case 'c':
+					t2 = VA_ARG(argument_list, CHAR);
+					KCEX_PutChar(t2);
+					break;
+				case 's':
+					t3 = VA_ARG(argument_list,CHAR*);
+					KCEX_PrintString(t3);
+					break;
+				
+			}
+		}
+		format_iter++;
+	}
+
+}
+
+//----------------------------
+//    中断处理
+//----------------------------
+
+VOID KCEX_IDT_LoadGate(UDWORD vector,UBYTE desc_type,HANDLER handler,UBYTE privilege) {
+	GATE* p_gate = &IDT[vector];
+	UDWORD	base = (UDWORD)handler;
+	p_gate->offset_low = base & 0xFFFF;
+	p_gate->selector = SELECTOR_KERNEL_CS;
+	p_gate->dcount = 0;
+	p_gate->attr = desc_type | (privilege << 5);
+	p_gate->offset_high = (base >> 16) & 0xFFFF;
 }
