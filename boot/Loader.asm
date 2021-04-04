@@ -552,7 +552,7 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	mov bx,0x0404
 	mov ah, 0xFF
 	mov al, 'R'
-	;call FUNC_CGADisplayCharPM
+	call FUNC_CGADisplayCharPM
 
 
 
@@ -566,7 +566,7 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	
 	mov ebp,DDP_TEST
 	
-	;call FUNC_CGADisplayIntPM
+	call FUNC_CGADisplayIntPM
 
 
 	call FUNC_DisplayNewLinePM
@@ -574,12 +574,12 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	mov ah, 0Fh
 	mov al,8
 	mov ebp,DDP_MEMORY_SIZE
-	;call FUNC_CGADisplayIntPM
+	call FUNC_CGADisplayIntPM
 
 	call FUNC_DisplayNewLinePM
 	mov ah, 2Fh
 	mov ebp,DSP_TEST
-	;call FUNC_CGADisplayStringPM
+	call FUNC_CGADisplayStringPM
 	call FUNC_MemoryPaging
 	call FUNC_RearrangeKernel
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry

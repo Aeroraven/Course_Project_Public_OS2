@@ -28,14 +28,6 @@ typedef void VOID;
 typedef char CHAR;
 
 typedef char* CCSTRING; //字符串指针
-typedef void (*HANDLER)(); //函数指针
-
-typedef char* VA_LIST; //可变参数列表
-
-#define _INTSIZEOF(n) ((sizeof(n)+sizeof(DWORD)-1)&(~(sizeof(DWORD)-1)))
-#define VA_START(ap, arg) (ap = (VA_LIST)&arg + _INTSIZEOF(arg))
-#define VA_END(ap) (ap=(VA_LIST)0);
-#define VA_ARG(ap, type) (*(type*)((ap+=_INTSIZEOF(type))-_INTSIZEOF(type)))
 
 //GDT/IDT描述符
 typedef struct DESCRIPTOR_s{
@@ -53,7 +45,7 @@ typedef struct GATE_s{
 	UWORD selector;
 	UBYTE dcount;
 	UBYTE attr;
-	UWORD offset_high;
+	UWORD offsed_high;
 } GATE;
 
 //常用常量
@@ -73,12 +65,9 @@ typedef struct GATE_s{
 #define IDT_SIZE 256
 #define IDTR_SIZE 6
 
-#define SELECTOR_KERNEL_CS 8
 
 //CGA常量
-#define CGA_DEFAULT_COLOR_W 0x3f //默认CGA颜色
+#define CGA_DEFAULT_COLOR_W 0x0f //默认CGA颜色
 #define CGA_WARNING_COLOR_W 0x0E //警告CGA颜色
 #define CGA_EXCEPTION_COLOR_W 0x0C //异常CGA颜色
 
-//其他
-#define KCEX_PRINTF_BUFFERSIZE 1000

@@ -69,7 +69,6 @@ global AF_SaveGlobalDescriptorTable
 global AF_VMBreakPoint
 global AF_DispChar
 global AF_GetDispPos
-global AF_SetDispPos
 
 global AF_OutPort
 global AF_InPort
@@ -124,7 +123,7 @@ AF_LoadGlobalDescriptorTable:
 	ret
 
 
-AF_LoadInterruptDescriptorTable:
+AF_LoadInterruptlDescriptorTable:
 	push ebp
 	mov ebp,esp
 	push esi
@@ -193,15 +192,6 @@ AF_GetDispPos:
 	mov edx,[DSPPOS]
 	mov [ds:esi],edx
 	mov eax,[DSPPOS]
-	pop ebp
-	ret
-
-;函数 AF_DispChar [保护模式] - 设置输出位置
-AF_SetDispPos:
-	push ebp
-	mov ebp,esp
-	mov eax,[ebp+8]
-	mov dword [DSPPOS],eax
 	pop ebp
 	ret
 
