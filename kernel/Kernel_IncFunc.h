@@ -86,6 +86,10 @@ VOID AF_OutPort(UWORD port, UBYTE value);
 // 参数：UWORD port 端口号
 UBYTE AF_InPort(UWORD port);
 
+//【AF_UD2Call】
+// 调用UD2指令
+VOID AF_UD2Call();
+
 
 //----------------------------------------
 //	异常中断(函数定义在 Kernel_AsmFunc.asm中)

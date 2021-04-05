@@ -74,6 +74,8 @@ global AF_SetDispPos
 global AF_OutPort
 global AF_InPort
 
+global AF_UD2Call
+
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
 ;		PUSH (dd)来源指针
@@ -206,7 +208,7 @@ AF_SetDispPos:
 	ret
 
 ;函数AF_OutPort [保护模式] - 端口输出
-AF_Outport:
+AF_OutPort:
 	mov edx, [esp+4]
 	mov al,[esp+8]
 	out dx,al
@@ -221,4 +223,9 @@ AF_InPort:
 	in al,dx
 	nop
 	nop
+	ret
+
+
+AF_UD2Call:
+	ud2
 	ret

@@ -19,6 +19,17 @@ CONST DWORD CGA_COLMAX = 80; //CGA最大行
 CONST UBYTE CGA_DEFAULT_COLOR = 0x3f;
 
 
+VOID KCEX_PrintChar(UBYTE character);
+VOID KCEX_PrintString(UBYTE* chString);
+VOID KCEX_PrintByteHex(UBYTE arg);
+DWORD KCEX_Strlen(UBYTE* str);
+CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base);
+DWORD KCEX_PutChar(DWORD ch);
+DWORD KCEX_MemoryFill(CHAR* dest, UBYTE ch, UDWORD size);
+DWORD KCEX_PrintFormat(CHAR* format, ...);
+
+VOID KC_IDT_LoadGate(UDWORD vector, UBYTE desc_type, HANDLER handler, UBYTE privilege);
+
 //【KCEX_PrintChar】
 // 打印字符
 // 参数：UBYTE character 要打印的字符
@@ -39,6 +50,23 @@ VOID KCEX_PrintChar(UBYTE character) {
 	}
 }
 
+VOID KCEX_PrintChar_Except(UBYTE character) {
+	DWORD CGA_CURRENTCOL = 0; //CGA当前列
+	if (character != '\n') {
+		AF_DispChar((UDWORD)character, CGA_EXCEPTION_COLOR_W);
+		AF_GetDispPos(&CGA_CURRENTCOL);
+		if (CGA_CURRENTCOL >= CGA_COLMAX) {
+			CGA_CURRENTCOL = 0;
+		}
+		return;
+	}
+	AF_GetDispPos(&CGA_CURRENTCOL);
+	DWORD CGA_Remain = CGA_CURRENTCOL % (CGA_COLMAX * 2);
+	for (DWORD i = 0; i < (CGA_COLMAX * 2 - CGA_Remain) / 2; i++) {
+		AF_DispChar(' ', CGA_EXCEPTION_COLOR_W);
+	}
+}
+
 //【KCEX_PrintString】
 // 打印字符
 // 参数：UBYTE* chString 要打印的字符串
@@ -46,6 +74,13 @@ VOID KCEX_PrintString(UBYTE* chString) {
 	UBYTE* i = chString;
 	while (*i != '\0') {
 		KCEX_PrintChar(*i);
+		i++;
+	}
+}
+VOID KCEX_PrintStringE(UBYTE* chString) {
+	UBYTE* i = chString;
+	while (*i != '\0') {
+		KCEX_PrintChar_Except(*i);
 		i++;
 	}
 }
@@ -78,8 +113,7 @@ VOID KCEX_PrintByteHex(UBYTE arg) {
 //【KCEX_Strlen】
 // 测量一个字符串长度
 // 参数：UBYTE* 字符串
-DWORD KCEX_Strlen(UBYTE* str) 
-{
+DWORD KCEX_Strlen(UBYTE* str) {
 	DWORD len = 0;
 	while (*str != '\0') {
 		len++;
@@ -103,8 +137,10 @@ CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
 		b *= base;
 		x++;
 	}
-	b /= base;
-	x--;
+	if (x > 0) {
+		b /= base;
+		x--;
+	}
 	CHAR* i = str;
 	while (x>=0) {
 		(*i) = base_map[num / b];
@@ -189,6 +225,9 @@ DWORD KCEX_PrintFormat(CHAR* format, ...) {
 				
 			}
 		}
+		else {
+			KCEX_PrintString(*format_iter);
+		}
 		format_iter++;
 	}
 
@@ -198,7 +237,7 @@ DWORD KCEX_PrintFormat(CHAR* format, ...) {
 //    中断处理
 //----------------------------
 
-VOID KCEX_IDT_LoadGate(UDWORD vector,UBYTE desc_type,HANDLER handler,UBYTE privilege) {
+VOID KC_IDT_LoadGate(UDWORD vector,UBYTE desc_type,HANDLER handler,UBYTE privilege) {
 	GATE* p_gate = &IDT[vector];
 	UDWORD	base = (UDWORD)handler;
 	p_gate->offset_low = base & 0xFFFF;
@@ -206,4 +245,55 @@ VOID KCEX_IDT_LoadGate(UDWORD vector,UBYTE desc_type,HANDLER handler,UBYTE privi
 	p_gate->dcount = 0;
 	p_gate->attr = desc_type | (privilege << 5);
 	p_gate->offset_high = (base >> 16) & 0xFFFF;
+}
+
+
+//----------------------------
+//    数学相关
+//----------------------------
+DOUBLE KCEX_Math_Sin(DOUBLE x) {
+	DWORD fact = 1;
+	DOUBLE ans = 0;
+	DOUBLE xs = 1;
+	for (DWORD i = 1, j = 1; i < KCEX_MATH_TAYLOR_LIM; i += 2, j = -j) {
+		xs *= x;
+		fact *= i;
+		ans += xs * j / fact;
+		xs *= x;
+		fact *= (i + 1);
+	}
+	return ans;
+}
+DOUBLE KCEX_Math_Cos(DOUBLE x) {
+	DWORD fact = 1;
+	DOUBLE ans = 0;
+	DOUBLE xs = 1;
+	for (DWORD i = 1, j = 1; i < KCEX_MATH_TAYLOR_LIM; i += 2, j = -j) {
+		ans += xs * j / fact;
+		xs *= x;
+		xs *= x;
+		fact *= i;
+		fact *= (i + 1);
+	}
+	return ans;
+}
+DOUBLE KCEX_Math_Abs(DOUBLE x) {
+	if (x < 0.0)x = -x;
+	return x;
+}
+DOUBLE KCEX_Math_Sqrt(DOUBLE x) {
+	DOUBLE L = 0.0, R = x;
+	while (KCEX_Math_Abs(R - L) > KCEX_MATH_DBL_EPS) {
+		DOUBLE m = (L + R) / 2;
+		if (m*m < x) {
+			L = m;
+		}
+		else {
+			R = m;
+		}
+	}
+	return L;
+}
+DOUBLE KCEX_Math_Tan(DOUBLE x) {
+	return KCEX_Math_Sin(x) / KCEX_Math_Cos(x);
 }

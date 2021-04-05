@@ -47,83 +47,83 @@ global AFE_EXCEPTION_MC
 global AFE_EXCEPTION_XM
 
 AFE_EXCEPTION_DE:
-	push 0xffffffff
+	push 0x0
 	push 0
 	jmp exception_handle
 AFE_EXCEPTION_DB:
-	push 0xffffffff
+	push 0x0
 	push 1
 	jmp exception_handle
 AFE_EXCEPTION_NMI:
-	push 0xffffffff
+	push 0x0
 	push 2
 	jmp exception_handle
 AFE_EXCEPTION_BP:
-	push 0xffffffff
+	push 0x0
 	push 3
 	jmp exception_handle
 AFE_EXCEPTION_OF:
-	push 0xffffffff
+	push 0x0
 	push 4
 	jmp exception_handle
 AFE_EXCEPTION_BR:
-	push 0xffffffff
+	push 0x0
 	push 5
 	jmp exception_handle
 AFE_EXCEPTION_UD:
-	push 0xffffffff
+	push 0x0
 	push 6
 	jmp exception_handle
 AFE_EXCEPTION_NM:
-	push 0xffffffff
+	push 0x0
 	push 7
 	jmp exception_handle
 AFE_EXCEPTION_DF:
-	push 0xffffffff
+	;push 0x0
 	push 8
 	jmp exception_handle
 AFE_EXCEPTION_MF:
-	push 0xffffffff
+	push 0x0
 	push 9
 	jmp exception_handle
 AFE_EXCEPTION_TS:
-	push 0xffffffff
+	;push 0x0
 	push 10
 	jmp exception_handle
 AFE_EXCEPTION_NP:
-	push 0xffffffff
+	;push 0x0
 	push 11
 	jmp exception_handle
 AFE_EXCEPTION_SS:
-	push 0xffffffff
+	;push 0x0
 	push 12
 	jmp exception_handle
 AFE_EXCEPTION_GP:
-	push 0xffffffff
+	;push 0xffffffff
 	push 13
 	jmp exception_handle
 AFE_EXCEPTION_PF:
-	push 0xffffffff
+	;push 0xffffffff
 	push 14
 	jmp exception_handle
 AFE_EXCEPTION_RSVD:
-	push 0xffffffff
+	push 0x0
 	push 15
 	jmp exception_handle
 AFE_EXCEPTION_MF2:
-	push 0xffffffff
+	push 0x0
 	push 16
 	jmp exception_handle
 AFE_EXCEPTION_AC:
-	push 0xffffffff
+	push 0x0
 	push 17
 	jmp exception_handle
 AFE_EXCEPTION_MC:
-	push 0xffffffff
+	push 0x0
 	push 18
 	jmp exception_handle
 AFE_EXCEPTION_XM:
-	push 0xffffffff
+	push 0x0
 	push 19
 	jmp exception_handle
 

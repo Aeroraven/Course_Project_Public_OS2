@@ -20,6 +20,12 @@
 #define max(a,b) ((a>b)?(a):(b))
 #define min(a,b) ((a<b)?(a):(b))
 
+#define sin KCEX_Math_Sin
+#define sqrt KCEX_Math_Sqrt
+#define fabs KCEX_Math_Abs
+#define cos KCEX_Math_Cos
+#define tan KCEX_Math_Tan
+
 
 //Assembly Instructions
 
@@ -28,3 +34,4 @@
 #define _lidt AF_LoadInterruptDescriptorTable
 #define _out AF_OutPort
 #define _in AF_InPort
+#define _ud2 AF_UD2Call
