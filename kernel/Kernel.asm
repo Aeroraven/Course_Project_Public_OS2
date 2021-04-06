@@ -6,8 +6,20 @@
 ; By Aeroraven, 2021-3-16
 ; --------------------------------------------------------------
 
+
 extern kernel_start
 extern exception_handler
+extern spurious_interrupt_request
+;ºê
+%macro  spurious_int_placeholder    1
+        push    %1
+        call    spurious_interrupt_request
+        add     esp, 4
+        hlt
+%endmacro
+;¿ªÊ¼
+
+
 
 
 [SECTION .bss]
@@ -45,6 +57,25 @@ global AFE_EXCEPTION_MF2
 global AFE_EXCEPTION_AC
 global AFE_EXCEPTION_MC
 global AFE_EXCEPTION_XM
+
+global AFE_INT_0
+global AFE_INT_1
+global AFE_INT_2
+global AFE_INT_3
+global AFE_INT_4
+global AFE_INT_5
+global AFE_INT_6
+global AFE_INT_7
+global AFE_INT_8
+global AFE_INT_9
+global AFE_INT_10
+global AFE_INT_11
+global AFE_INT_12
+global AFE_INT_13
+global AFE_INT_14
+global AFE_INT_15
+global AFE_INT_16
+
 
 AFE_EXCEPTION_DE:
 	push 0x0
@@ -127,6 +158,40 @@ AFE_EXCEPTION_XM:
 	push 19
 	jmp exception_handle
 
+AFE_INT_0:
+	spurious_int_placeholder 0
+AFE_INT_1:
+	spurious_int_placeholder 1
+AFE_INT_2:
+	spurious_int_placeholder 2
+AFE_INT_3:
+	spurious_int_placeholder 3
+AFE_INT_4:
+	spurious_int_placeholder 4
+AFE_INT_5:
+	spurious_int_placeholder 5
+AFE_INT_6:
+	spurious_int_placeholder 6
+AFE_INT_7:
+	spurious_int_placeholder 7
+AFE_INT_8:
+	spurious_int_placeholder 8
+AFE_INT_9:
+	spurious_int_placeholder 9
+AFE_INT_10:
+	spurious_int_placeholder 10
+AFE_INT_11:
+	spurious_int_placeholder 11
+AFE_INT_12:
+	spurious_int_placeholder 12
+AFE_INT_13:
+	spurious_int_placeholder 13
+AFE_INT_14:
+	spurious_int_placeholder 14
+AFE_INT_15:
+	spurious_int_placeholder 15
+AFE_INT_16:
+	spurious_int_placeholder 16
 
 exception_handle:
 	call exception_handler

@@ -75,6 +75,9 @@ global AF_OutPort
 global AF_InPort
 
 global AF_UD2Call
+global AF_CLICall
+global AF_STICall
+global AF_HLTCall
 
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
@@ -225,7 +228,22 @@ AF_InPort:
 	nop
 	ret
 
-
 AF_UD2Call:
 	ud2
+	ret
+
+AF_HLTCall:
+	hlt
+	ret
+
+AF_INFLoopCall:
+	jmp $
+	ret
+
+AF_CLICall:
+	cli
+	ret
+
+AF_STICall:
+	sti
 	ret

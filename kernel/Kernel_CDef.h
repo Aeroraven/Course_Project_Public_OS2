@@ -29,6 +29,7 @@ typedef char CHAR;
 
 typedef char* CCSTRING; //字符串指针
 typedef void (*HANDLER)(); //函数指针
+typedef UDWORD (*UDWORD_HANDLER)(); //函数指针
 
 typedef char* VA_LIST; //可变参数列表(不安全)
 
@@ -85,15 +86,18 @@ typedef struct GATE_s{
 
 //其他
 #define KCEX_PRINTF_BUFFERSIZE 1000
-#define KCEX_MATH_TAYLOR_LIM 100
+#define KCEX_MATH_TAYLOR_LIM 40
 #define KCEX_MATH_DBL_EPS 1e-7
 #define KCEX_MATH_FL_EPS 1e-5
 
 //C-Style
 #define M_PI 3.14159265358979323846
+#define M_E 2.718281828459
 
 //---------------------内核权限-----------------------------
 #define KRNL_PRIVL_R0 0x0
+#define KRNL_PRIVL_R1 0x1
+#define KRNL_PRIVL_R2 0x2
 #define KRNL_PRIVL_R3 0x3
 #define KRNL_PRIVL_SYS KRNL_PRIVL_R0
 #define KRNL_PRIVL_USR KRNL_PRIVL_R3
@@ -151,3 +155,25 @@ typedef struct GATE_s{
 #define KRNL_INTTIPS_MF2 "#MF: Floating-point error"
 #define KRNL_INTTIPS_AC "#AC: Alignment check"
 #define KRNL_INTTIPS_UNKNOWN "#UN: Unknown Error"
+
+//----------------------进程控制----------------------------
+typedef struct s_stackframe {
+	UDWORD	gs;		
+	UDWORD	fs;		
+	UDWORD	es;		
+	UDWORD	ds;		
+	UDWORD	edi;		
+	UDWORD	esi;		
+	UDWORD	ebp;		
+	UDWORD	kernel_esp;	
+	UDWORD	ebx;		
+	UDWORD	edx;		
+	UDWORD	ecx;		
+	UDWORD	eax;		
+	UDWORD	retaddr;
+	UDWORD	eip;		
+	UDWORD	cs;		
+	UDWORD	eflags;		
+	UDWORD	esp;	
+	UDWORD	ss;		
+}STACK_FRAME;

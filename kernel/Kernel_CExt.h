@@ -168,9 +168,8 @@ DWORD KCEX_MemoryFill(CHAR* dest, UBYTE ch, UDWORD size) {
 }
 
 //【KCEX_PrintFormat】(Deprecated)
-// 格式化输出（不安全版本）
+// 格式化输出(printf)
 DWORD KCEX_PrintFormat(CHAR* format, ...) {
-	
 	VA_LIST argument_list;
 	CHAR* format_iter = format;
 	VA_START(argument_list, format);
@@ -296,4 +295,31 @@ DOUBLE KCEX_Math_Sqrt(DOUBLE x) {
 }
 DOUBLE KCEX_Math_Tan(DOUBLE x) {
 	return KCEX_Math_Sin(x) / KCEX_Math_Cos(x);
+}
+DOUBLE KCEX_Math_ExpDecTaylor(DOUBLE x) {
+	DOUBLE frac = 1;
+	DOUBLE sx = 1;
+	DOUBLE ans = 0;
+	for (DWORD i = 0; i < KCEX_MATH_TAYLOR_LIM; i++) {
+		ans += sx / frac;
+		sx *= x;
+		frac *= (double)(i + 1);
+	}
+	return ans;
+}
+DOUBLE KCEX_Math_ExpIntPow(UDWORD x) {
+	DOUBLE base = 1;
+	DOUBLE ans = 1;
+	UDWORD dx = x;
+	while (dx) {
+		if (dx & 1) ans = ans * (double)base;
+		dx >>= 1;
+		base = base * base;
+	}
+	return ans;
+}
+DOUBLE KCEX_Math_Exp(DOUBLE x) {
+	UDWORD intp = (DWORD)x;
+	DOUBLE decp = x - (DOUBLE)intp;
+	return KCEX_Math_ExpDecTaylor(decp) + KCEX_Math_ExpIntPow(intp);
 }

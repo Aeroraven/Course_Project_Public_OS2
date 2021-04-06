@@ -90,9 +90,21 @@ UBYTE AF_InPort(UWORD port);
 // 调用UD2指令
 VOID AF_UD2Call();
 
+//【AF_CLICall】
+// 调用CLI：关中断
+VOID AF_CLICall();
+
+//【AF_STICall】
+// 调用STI：开中断
+VOID AF_STICall();
+
+//【AF_HLTCall】
+// 使CPU处于暂停状态，HLT指令
+VOID AF_HLTCall();
+
 
 //----------------------------------------
-//	异常中断(函数定义在 Kernel_AsmFunc.asm中)
+//	异常和中断(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------
 
 VOID AFE_EXCEPTION_DE();
@@ -115,3 +127,21 @@ VOID AFE_EXCEPTION_MF2();
 VOID AFE_EXCEPTION_AC();
 VOID AFE_EXCEPTION_MC();
 VOID AFE_EXCEPTION_XM();
+
+VOID AFE_INT_0();
+VOID AFE_INT_1();
+VOID AFE_INT_2();
+VOID AFE_INT_3();
+VOID AFE_INT_4();
+VOID AFE_INT_5();
+VOID AFE_INT_6();
+VOID AFE_INT_7();
+VOID AFE_INT_8();
+VOID AFE_INT_9();
+VOID AFE_INT_10();
+VOID AFE_INT_11();
+VOID AFE_INT_12();
+VOID AFE_INT_13();
+VOID AFE_INT_14();
+VOID AFE_INT_15();
+VOID AFE_INT_16();
