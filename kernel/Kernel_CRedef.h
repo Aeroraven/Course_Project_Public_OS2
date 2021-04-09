@@ -46,12 +46,13 @@
 
 //Assembly Instructions
 
-#define _sgdt AF_SaveGlobalDescriptorTable //(ASM) SGDT 指令
-#define _lgdt AF_LoadGlobalDescriptorTable //(ASM) LGDT 指令
-#define _lidt AF_LoadInterruptDescriptorTable
-#define _out AF_OutPort
-#define _in AF_InPort
-#define _ud2 AF_UD2Call
-#define _sti AF_STICall //(ASM) STI 指令
-#define _cli AF_CLICall //(ASM) CLI 指令
-#define _hlt AF_HLTCall //(ASM) HLT 指令
+#define __sgdt AF_SaveGlobalDescriptorTable //(ASM) SGDT 指令
+#define __lgdt AF_LoadGlobalDescriptorTable //(ASM) LGDT 指令
+#define __lidt AF_LoadInterruptDescriptorTable
+#define __out AF_OutPort
+#define __in AF_InPort
+#define __ud2 AF_UD2Call
+#define __sti AF_STICall //(ASM) STI 指令
+#define __cli AF_CLICall //(ASM) CLI 指令
+#define __hlt AF_HLTCall //(ASM) HLT 指令
+#define __ltr AF_LTRAxCall //(ASM) LTR 指令

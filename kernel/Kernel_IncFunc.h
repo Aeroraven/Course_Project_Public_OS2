@@ -12,6 +12,7 @@
 //	函数导入(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------
 #include "Kernel_CDef.h"
+#include "Kernel_AsmFunc.h"
 
 
 // 【AF_MemoryCopy】
@@ -102,6 +103,9 @@ VOID AF_STICall();
 // 使CPU处于暂停状态，HLT指令
 VOID AF_HLTCall();
 
+//【AF_LTRAxCall】
+// 装载TS寄存器，LTR指令
+VOID AF_LTRAxCall(SELECTOR_W selector_task);
 
 //----------------------------------------
 //	异常和中断(函数定义在 Kernel_AsmFunc.asm中)

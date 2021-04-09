@@ -225,26 +225,15 @@ DWORD KCEX_PrintFormat(CHAR* format, ...) {
 			}
 		}
 		else {
-			KCEX_PrintString(*format_iter);
+			KCEX_PrintChar(*format_iter);
+			
+			
 		}
 		format_iter++;
 	}
 
 }
 
-//----------------------------
-//    ÖÐ¶Ï´¦Àí
-//----------------------------
-
-VOID KC_IDT_LoadGate(UDWORD vector,UBYTE desc_type,HANDLER handler,UBYTE privilege) {
-	GATE* p_gate = &IDT[vector];
-	UDWORD	base = (UDWORD)handler;
-	p_gate->offset_low = base & 0xFFFF;
-	p_gate->selector = SELECTOR_KERNEL_CS;
-	p_gate->dcount = 0;
-	p_gate->attr = desc_type | (privilege << 5);
-	p_gate->offset_high = (base >> 16) & 0xFFFF;
-}
 
 
 //----------------------------

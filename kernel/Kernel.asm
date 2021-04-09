@@ -10,6 +10,9 @@
 extern kernel_start
 extern exception_handler
 extern spurious_interrupt_request
+extern ProcessReady
+extern tss
+extern Ticks
 ;ºê
 %macro  spurious_int_placeholder    1
         push    %1
@@ -29,6 +32,7 @@ StackTop:
 [SECTION .text]
 
 global _start
+global restart
 
 _start: 
 	mov	esp, StackTop
@@ -36,6 +40,24 @@ _start:
 	call kernel_start
 	jmp $
 	
+restart:
+	 mov esp,[ProcessReady]  
+	 xchg bx,bx   
+	 lldt [esp+72]   
+	 lea eax,[esp+72]   
+	 mov dword[tss+4],eax   
+	 xchg bx,bx   
+	 pop gs   
+	 pop fs   
+	 pop es   
+	 pop ds   
+	 xchg bx,bx   
+	 popad   
+	 xchg bx,bx   
+	 add esp,4   
+	 xchg bx,bx   
+	;TEST EIP
+	 iretd 
 ;ÖÐ¶Ï
 global AFE_EXCEPTION_DE
 global AFE_EXCEPTION_DB
@@ -159,7 +181,11 @@ AFE_EXCEPTION_XM:
 	jmp exception_handle
 
 AFE_INT_0:
-	spurious_int_placeholder 0
+	;inc byte[gs:0]
+	call Ticks
+	mov al,0x20
+	out 0x20,al
+	iretd
 AFE_INT_1:
 	spurious_int_placeholder 1
 AFE_INT_2:

@@ -150,7 +150,7 @@ LABEL_FILE_LOADED:
 	mov cx, CONST_BOOT_Msg2_Len
 	mov bp, CONST_BOOT_Msg2
 	call FUNC_DisplayString
-	BREAK_PT
+	;BREAK_PT
 	jmp CONST_LOADER_BaseAddr:CONST_LOADER_OffsetAddr
 
 LABEL_LOADER_MISSING:

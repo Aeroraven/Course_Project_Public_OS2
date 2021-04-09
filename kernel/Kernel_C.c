@@ -6,15 +6,15 @@
 // By Aeroraven, 2021-4-3
 // --------------------------------------------------------------
 #include "Kernel_CDef.h"
+#include "Kernel_CCore.h"
 #include "Kernel_CExt.h"
 #include "Kernel_CRedef.h"
 #include "Kernel_GlobalVar.h"
 
-//内核开始
-VOID kernel_main() {
-	AF_STICall();
-	AF_HLTCall();
-}
+VOID test();
+VOID load_first_task();
+
+
 
 //初始化内核
 VOID kernel_start() {
@@ -62,6 +62,9 @@ VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD c
 		case 0:
 			KCEX_PrintStringE(KRNL_INTTIPS_DE);
 			break;
+		case 6:
+			KCEX_PrintStringE(KRNL_INTTIPS_UD);
+			break;
 		case 13:
 			KCEX_PrintStringE(KRNL_INTTIPS_SS);
 			break;
@@ -90,6 +93,7 @@ VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD c
 }
 
 
+
 //8259A初始化
 VOID initialize_8259A() {
 	
@@ -106,6 +110,10 @@ VOID initialize_8259A() {
 
 	//开启键盘中断
 	AF_OutPort(KRNL_INT_M_CTLMASK, 0xFD);
+	AF_OutPort(KRNL_INT_S_CTLMASK, 0xFF);
+
+	//开启时钟中断
+	AF_OutPort(KRNL_INT_M_CTLMASK, 0xFE);
 	AF_OutPort(KRNL_INT_S_CTLMASK, 0xFF);
 
 }
@@ -157,3 +165,40 @@ VOID initalize_interrupts() {
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ8 + 7, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_15, KRNL_PRIVL_SYS);
 }
 
+VOID hello_world() {
+	KCEX_PrintChar('w');
+	int i = 0;
+	while (1) {
+		int s = TickCount;
+		if (s < 0) {
+			s = -s;
+		}
+		AF_SetDispPos(0);
+		printf("Tick:%d", (s / 10) % 20);
+	}
+}
+
+VOID load_first_task() {
+	PROCESS* proc = &ProcessTable[0];
+	KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
+	KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
+	KC_LoadProcessInfo(proc, KRNL_LSELECTOR_NXT, KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
+		KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), hello_world,
+		TestStack + 8000, 0x1201);
+	KC_LoadDescriptor(&GDT[KRNL_LSELECTOR_NXT>>3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt), LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+}
+
+VOID test() {
+	ProcessReady = ProcessTable;
+	restart();
+}
+
+//内核开始
+VOID kernel_main() {
+	load_first_task();
+	KC_InitTSS();
+	test();
+}
+VOID Ticks() {
+	TickCount++;
+}

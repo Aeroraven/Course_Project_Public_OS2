@@ -23,6 +23,7 @@ typedef void* ANYPTR;	//空类型指针,等效于UDWORD
 typedef void* GDTPTR;	//GDT指针
 typedef void* LDTPTR;	//LDT指针
 typedef void* IDTPTR;   //IDT指针
+typedef UDWORD SELECTOR_W;
 
 typedef void VOID;
 typedef char CHAR;
@@ -76,6 +77,8 @@ typedef struct GATE_s{
 #define GDTR_SIZE 6
 #define IDT_SIZE 256
 #define IDTR_SIZE 6
+#define LDT_SIZE 128
+#define LDTR_SIZE 6
 
 #define SELECTOR_KERNEL_CS 8
 
@@ -102,9 +105,54 @@ typedef struct GATE_s{
 #define KRNL_PRIVL_SYS KRNL_PRIVL_R0
 #define KRNL_PRIVL_USR KRNL_PRIVL_R3
 
+#define KRNL_RPL0 0x0
+#define KRNL_RPL1 0x1
+#define KRNL_RPL2 0x2
+#define KRNL_RPL3 0x3
+
+#define KRNL_RPL_SYS KRNL_RPL0
+#define KRNL_RPL_USR KRNL_RPL3
+//---------------------Inline Assembler---------------------
+#define GCCASM_INTEL_SYNTAX asm(".intel_syntax noprefix");
+#define GCCASM_ATT_SYNTAX asm(".att_syntax prefix");
+#define CRLF ""
+//---------------------Loader Selector----------------------
+#define KRNL_LSELECTOR_EMPTY 0x0
+#define KRNL_LSELECTOR_GENERAL 0x8
+#define KRNL_LSELECTOR_GENERALDATA 0x10
+#define KRNL_LSELECTOR_CGA 0x18
+#define KRNL_LSELECTOR_MDA 0x20
+#define KRNL_LSELECTOR_VGA 0x28
+
+#define KRNL_LSELECTOR_VIDEO KRNL_LSELECTOR_CGA
+
+#define KRNL_LSELECTOR_NXT 0x30
+#define KRNL_LSELECTOR_TSS 0x38
 
 //---------------------IDT/GDT/LDT处理----------------------
+typedef struct s_SELECTOR_S {
+	DWORD selector_offset;
+	DWORD table_indicator;
+	DWORD rpl;
+}SELECTOR_S;
+
+#define KRNL_DA1(type, privl) ((type)|(privl<<5))
+#define KRNL_LDSREG(selector,ti,rpl) (((selector)&(~7))|(ti)|(rpl)) //段寄存器描述(保护模式)
+#define KRNL_LDSREG_S(selector_s) (((selector_s.selector_offset)&(~7))|(selector_s.table_indicator)|(selector_s.rpl))
+
 #define KRNL_DESCRIPTOR_ATTR_386IGate 0x8E //386中断门
+#define	KRNL_DESCRIPTOR_ATTR_C 0x98
+#define	KRNL_DESCRIPTOR_ATTR_DRW 0x92
+#define	KRNL_DESCRIPTOR_ATTR_LDT 0x82
+#define	KRNL_DESCRIPTOR_ATTR_386TSS 0x89
+
+#define KRNL_SELECTOR_TL_GDT 0x0 //TL:查询GDT表
+#define KRNL_SELECTOR_TL_LDT 0x4 //TL:查询IDT表
+
+#define KRNL_SELECTORS_USRL(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_LDT,KRNL_RPL_USR})
+#define KRNL_SELECTORS_SYSG(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_GDT,KRNL_RPL_SYS})
+#define KRNL_SELECTORS_SYSL(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_LDT,KRNL_RPL_SYS})
+#define KRNL_SELECTORS_USRG(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_GDT,KRNL_RPL_USR})
 
 
 //----------------------中断处理----------------------------
@@ -157,6 +205,9 @@ typedef struct GATE_s{
 #define KRNL_INTTIPS_UNKNOWN "#UN: Unknown Error"
 
 //----------------------进程控制----------------------------
+#define KRNL_PROC_NAME_LEN 16
+#define KRNL_PROC_MAXCNT 1
+typedef UDWORD PROC_PID;
 typedef struct s_stackframe {
 	UDWORD	gs;		
 	UDWORD	fs;		
@@ -177,3 +228,42 @@ typedef struct s_stackframe {
 	UDWORD	esp;	
 	UDWORD	ss;		
 }STACK_FRAME;
+;
+
+typedef struct s_task_struct {
+	STACK_FRAME regs;
+	SELECTOR_W ldt_selector;
+	DESCRIPTOR ldt[LDT_SIZE];
+	PROC_PID pid;
+	CHAR proc_name[KRNL_PROC_NAME_LEN];
+}PROCESS;
+
+typedef struct s_tss {
+	UDWORD	backlink;
+	UDWORD	esp0;	
+	UDWORD	ss0;
+	UDWORD	esp1;
+	UDWORD	ss1;
+	UDWORD	esp2;
+	UDWORD	ss2;
+	UDWORD	cr3;
+	UDWORD	eip;
+	UDWORD	flags;
+	UDWORD	eax;
+	UDWORD	ecx;
+	UDWORD	edx;
+	UDWORD	ebx;
+	UDWORD	esp;
+	UDWORD	ebp;
+	UDWORD	esi;
+	UDWORD	edi;
+	UDWORD	es;
+	UDWORD	cs;
+	UDWORD	ss;
+	UDWORD	ds;
+	UDWORD	fs;
+	UDWORD	gs;
+	UDWORD	ldt;
+	UWORD	trap;
+	UWORD	iobase;
+}TSS;

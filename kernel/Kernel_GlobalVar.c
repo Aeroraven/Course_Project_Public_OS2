@@ -10,3 +10,9 @@
 
 #include "Kernel_CDef.h"
 #include "Kernel_GlobalVar.h"
+
+PROCESS ProcessTable[KRNL_PROC_MAXCNT];
+CHAR TestStack[8000];
+TSS tss;
+PROCESS* ProcessReady;
+DWORD TickCount;

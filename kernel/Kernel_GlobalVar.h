@@ -18,3 +18,8 @@ EXTERN UBYTE T[4];
 EXTERN DESCRIPTOR GDT[GDT_SIZE];
 EXTERN GATE IDT[IDT_SIZE];
 
+extern PROCESS ProcessTable[KRNL_PROC_MAXCNT];
+extern CHAR TestStack[8000];
+extern TSS tss;
+extern PROCESS* ProcessReady;
+extern DWORD TickCount;
