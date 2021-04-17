@@ -107,6 +107,11 @@ VOID AF_HLTCall();
 // 装载TS寄存器，LTR指令
 VOID AF_LTRAxCall(SELECTOR_W selector_task);
 
+
+//【SYSCALL_GetTick】
+// 系统调用：获取Tick
+DWORD SYSCALL_GetTick();
+
 //----------------------------------------
 //	异常和中断(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------

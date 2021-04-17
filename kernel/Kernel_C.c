@@ -13,6 +13,9 @@
 
 VOID test();
 VOID load_first_task();
+VOID Ticks(DWORD);
+VOID spurious_interrupt_request(UDWORD);
+VOID SystemCall();
 
 
 
@@ -116,6 +119,9 @@ VOID initialize_8259A() {
 	AF_OutPort(KRNL_INT_M_CTLMASK, 0xFE);
 	AF_OutPort(KRNL_INT_S_CTLMASK, 0xFF);
 
+	for (UDWORD i = 0; i < KRNL_INT_IRQ_COUNTS; i++) {
+		irq_handler[i] = spurious_interrupt_request;
+	}
 }
 
 //伪造中断请求
@@ -163,13 +169,18 @@ VOID initalize_interrupts() {
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ8 + 5, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_13, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ8 + 6, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_14, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ8 + 7, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_15, KRNL_PRIVL_SYS);
+
+	//系统调用
+	KC_IDT_LoadGate(KRNL_SYSCALL_VEC_GETTICK, KRNL_DESCRIPTOR_ATTR_386IGate, SystemCall, KRNL_PRIVL_USR);
 }
+
 
 VOID hello_world() {
 	while (1)
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
+		printf("%d", SYSCALL_GetTick());
 		printf("A");
 	}
 }
@@ -211,7 +222,14 @@ VOID load_multi_task() {
 		
 	}
 }
+VOID set_syscall() {
+	KC_SysCall_Establish(0, KCHD_SysCall_GetTick);
+}
 
+VOID set_irq() {
+	KC_IRQ_Establish(KRNL_INT_IRQI_CLOCK, Ticks);
+	KC_IRQ_Enable(KRNL_INT_IRQI_CLOCK);
+}
 
 VOID test() {
 	ProcessReady = &ProcessTable[0];
@@ -220,11 +238,20 @@ VOID test() {
 
 //内核开始
 VOID kernel_main() {
+	//系统计时
+	K_Ticks = 0;
+
 	//任务表
 	load_task_table();
 
 	//中断重入
 	K_IntReenter = 0;
+
+	//中断请求
+	set_irq();
+
+	//系统调用
+	set_syscall();
 
 	//进程
 	load_multi_task();
@@ -235,8 +262,9 @@ VOID kernel_main() {
 	while (1);
 }
 
-VOID Ticks() {
-	TickCount++;
+VOID Ticks(DWORD x) {
+	K_Ticks++;
+
 	if (K_IntReenter != 0)
 	{
 		printf("+");

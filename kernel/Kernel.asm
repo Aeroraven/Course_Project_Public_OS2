@@ -14,6 +14,8 @@ extern ProcessReady
 extern tss
 extern Ticks
 extern K_IntReenter
+extern irq_handler
+extern syscall_table
 ;ºê
 %macro  spurious_int_placeholder    1
         push    %1
@@ -38,6 +40,23 @@ extern K_IntReenter
 	popad
 %endmacro
 
+%macro interrupt_master 1
+	call Save
+	in al,0x21
+	or al,(1<<%1)
+	out 0x21,al
+	mov al,0x20
+	out 0x20,al
+	sti
+	push %1
+	call [irq_handler+4*%1]
+	pop ecx
+	cli
+	in al,0x21
+	and al,~(1<<%1)
+	out 0x21,al
+	ret
+%endmacro
 ;¶¨Òå
 PROC_STACKTOP		equ 72
 TSS3_S_SP0		equ 4
@@ -113,6 +132,8 @@ global AFE_INT_14
 global AFE_INT_15
 global AFE_INT_16
 
+global SystemCall
+global SYSCALL_GetTick
 
 AFE_EXCEPTION_DE:
 	push 0x0
@@ -195,37 +216,38 @@ AFE_EXCEPTION_XM:
 	push 19
 	jmp exception_handle
 
-
-AFE_INT_0:
-	sub esp,4
-
+Save:
 	save_regs
-
 	mov dx,ss
 	mov ds,dx
 	mov es,dx
-
-	mov al,0x20
-	out 0x20,al
-	
-
+	mov esi,esp
 	inc dword[K_IntReenter]
 	cmp dword[K_IntReenter],0
-	jne AFE_INT0_Flag1
-	
+	jne Save_1
 	mov esp,StackTop
 	push Restart
-	jmp AFE_INT0_Flag2
-AFE_INT0_Flag1:
+	jmp [esi+48]
+Save_1:
 	push Restart_Reenter
-AFE_INT0_Flag2:
+	jmp [esi+48]
+
+
+SYSCALL_GetTick:
+	mov eax,0x00
+	int 0x90
+	ret
+
+SystemCall:
+	call Save
 	sti
-	call Ticks
+	call [syscall_table+eax*4]
+	mov [esi+44],eax
 	cli
 	ret
 
-
-
+AFE_INT_0:
+	interrupt_master 0
 
 AFE_INT_1:
 	spurious_int_placeholder 1

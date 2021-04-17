@@ -14,6 +14,7 @@
 EXTERN UBYTE GDT_ptr[GDTR_SIZE];
 EXTERN UBYTE IDT_ptr[IDTR_SIZE];
 EXTERN UDWORD K_IntReenter;
+EXTERN UDWORD K_Ticks;
 
 EXTERN UBYTE T[4];
 EXTERN DESCRIPTOR GDT[GDT_SIZE];
@@ -29,3 +30,6 @@ extern TSS tss;
 extern PROCESS* ProcessReady;
 extern DWORD TickCount;
 extern TASK task_table[KRNL_PROC_MAXCNT];
+
+extern IRQ_HANDLER irq_handler[KRNL_INT_IRQ_COUNTS];
+extern SYSCALL syscall_table[KRNL_SYSCALL_COUNTS];

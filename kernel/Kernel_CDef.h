@@ -185,6 +185,12 @@ typedef struct s_SELECTOR_S {
 #define KRNL_INT_S_CTL 0xA0
 #define KRNL_INT_S_CTLMASK 0xA1
 
+//中断请求
+typedef VOID(*IRQ_HANDLER)(DWORD argv);
+#define KRNL_INT_IRQ_COUNTS 16
+
+#define KRNL_INT_IRQI_CLOCK 0x0
+
 //----------------------中断提示----------------------------
 #define KRNL_INTTIPS_DE "#DE: Division by zero."
 #define KRNL_INTTIPS_DB "#DB: Debug interrupt."
@@ -280,3 +286,11 @@ typedef struct s_tss {
 	UWORD	trap;
 	UWORD	iobase;
 }TSS;
+
+//----------------------系统调用----------------------------
+typedef VOID* SYSCALL;
+#define KRNL_SYSCALL_COUNTS 1
+#define KRNL_SYSCALL_IDX_GETTICK 0x0
+
+#define KRNL_SYSCALL_VEC_GETTICK 0x90
+

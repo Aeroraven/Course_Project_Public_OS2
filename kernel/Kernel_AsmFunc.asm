@@ -80,6 +80,8 @@ global AF_STICall
 global AF_HLTCall
 global AF_LTRAxCall
 
+global AF_SystemCallInt
+
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
 ;		PUSH (dd)来源指针
@@ -263,5 +265,16 @@ AF_LTRAxCall:
 	mov ebp,esp
 	mov ax,[ebp+8]
 	ltr ax
+	pop ebp
+	ret
+
+AF_SystemCallInt:
+	push ebp
+	mov ebp,esp
+	mov eax,[ebp+8]
+	push ebx
+	mov ebx,[ebp+12]
+	;int ebx
+	pop ebx
 	pop ebp
 	ret

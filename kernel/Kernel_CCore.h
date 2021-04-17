@@ -25,6 +25,28 @@ VOID KC_IDT_LoadGate(UDWORD vector, UBYTE desc_type, HANDLER handler, UBYTE priv
 	p_gate->offset_high = (base >> 16) & 0xFFFF;
 }
 
+VOID KC_IRQ_Disable(UDWORD irq_id) {
+	if (irq_id < 8) {
+		AF_OutPort(KRNL_INT_M_CTLMASK, AF_InPort(KRNL_INT_M_CTLMASK) | (1 << irq_id));
+	}
+	else {
+		AF_OutPort(KRNL_INT_S_CTLMASK, AF_InPort(KRNL_INT_S_CTLMASK) | (1 << irq_id));
+	}
+}
+
+VOID KC_IRQ_Enable(UDWORD irq_id) {
+	if (irq_id < 8) {
+		AF_OutPort(KRNL_INT_M_CTLMASK, AF_InPort(KRNL_INT_M_CTLMASK) &~ (1 << irq_id));
+	}
+	else {
+		AF_OutPort(KRNL_INT_S_CTLMASK, AF_InPort(KRNL_INT_S_CTLMASK) &~ (1 << irq_id));
+	}
+}
+
+VOID KC_IRQ_Establish(UDWORD irq_id, IRQ_HANDLER handler) {
+	KC_IRQ_Disable(irq_id);
+	irq_handler[irq_id] = handler;
+}
 //----------------------------
 //    ÃèÊö·û´¦Àí
 //----------------------------
@@ -95,4 +117,11 @@ VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname
 	task_table[id].stack_size = stacksize;
 	task_table[id].task_eip = handler;
 	task_table[id].stack_ptr = stack_addr;
+}
+
+DWORD KCHD_SysCall_GetTick() {
+	return K_Ticks;
+}
+VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
+	syscall_table[id] = handler;
 }

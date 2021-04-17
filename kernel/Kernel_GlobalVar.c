@@ -22,3 +22,6 @@ PROCESS* ProcessReady;
 DWORD TickCount;
 
 TASK task_table[KRNL_PROC_MAXCNT];
+
+IRQ_HANDLER irq_handler[KRNL_INT_IRQ_COUNTS];
+SYSCALL syscall_table[KRNL_SYSCALL_COUNTS];
