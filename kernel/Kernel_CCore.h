@@ -103,7 +103,20 @@ VOID KC_InitTSS() {
 	tss.iobase = sizeof(tss);
 	AF_LTRAxCall(KRNL_LSELECTOR_TSS);
 }
-VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname,UBYTE* stack_addr) {
+
+//----------------------------
+//    系统调用
+//----------------------------
+DWORD KCHD_SysCall_GetTick() {
+	return K_Ticks;
+}
+VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
+	syscall_table[id] = handler;
+}
+//----------------------------
+//    进程和作业
+//----------------------------
+VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname, UBYTE* stack_addr,DWORD priority) {
 	for (CHAR* i = taskname, *j = task_table[id].name;;)
 	{
 		*j = *i;
@@ -117,11 +130,33 @@ VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname
 	task_table[id].stack_size = stacksize;
 	task_table[id].task_eip = handler;
 	task_table[id].stack_ptr = stack_addr;
+	task_table[id].priority = priority;
 }
 
-DWORD KCHD_SysCall_GetTick() {
-	return K_Ticks;
+VOID KC_ProcessSchedule() {
+	ProcessReady->remaining_ticks--;
+	PROCESS* proc;
+	PROCESS* proc_cur = ProcessReady;
+	DWORD remaining_tick_max = 0;
+	if (proc_cur->remaining_ticks == 0) {
+		while (!remaining_tick_max) {
+			for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
+				if (ProcessTable[i].remaining_ticks > remaining_tick_max) {
+					remaining_tick_max = ProcessTable[i].remaining_ticks;
+					ProcessReady = &ProcessTable[i];
+				}
+			}
+			if (remaining_tick_max == 0) {
+				for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
+					ProcessTable[i].remaining_ticks = ProcessTable[i].priority;
+				}
+			}
+		}
+	}
 }
-VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
-	syscall_table[id] = handler;
+//----------------------------
+//    键盘I/O
+//----------------------------
+DWORD KC_KB_GetScanCode() {
+	return AF_InPort(0x60);
 }

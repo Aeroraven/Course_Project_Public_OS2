@@ -14,9 +14,13 @@
 VOID test();
 VOID load_first_task();
 VOID Ticks(DWORD);
+VOID KeyboardHandler(DWORD);
+
 VOID spurious_interrupt_request(UDWORD);
 VOID SystemCall();
+DWORD KeyBoardRead();
 
+STATIC KB_BUFFER kb_buffer;
 
 
 //初始化内核
@@ -115,13 +119,23 @@ VOID initialize_8259A() {
 	AF_OutPort(KRNL_INT_M_CTLMASK, 0xFD);
 	AF_OutPort(KRNL_INT_S_CTLMASK, 0xFF);
 
+	//重置键盘缓冲区
+	kb_buffer.front = kb_buffer.end = NULL;
+
 	//开启时钟中断
 	AF_OutPort(KRNL_INT_M_CTLMASK, 0xFE);
 	AF_OutPort(KRNL_INT_S_CTLMASK, 0xFF);
 
+	//中断控制
 	for (UDWORD i = 0; i < KRNL_INT_IRQ_COUNTS; i++) {
 		irq_handler[i] = spurious_interrupt_request;
 	}
+
+	//调整时钟中断
+	AF_OutPort(KRNL_HARDWARE_TIMERMODE, KRNL_HARDWARE_TIMER_RATEGEN);
+	AF_OutPort(KRNL_HARDWARE_TIMER0, KRNL_HARDWARE_TIMER_FREQ / KRNL_HARDWARE_TIMER_HZ);
+	AF_OutPort(KRNL_HARDWARE_TIMER0, (KRNL_HARDWARE_TIMER_FREQ / KRNL_HARDWARE_TIMER_HZ) >> 8);
+
 }
 
 //伪造中断请求
@@ -180,8 +194,11 @@ VOID hello_world() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		printf("%d", SYSCALL_GetTick());
-		printf("A");
+		//printf("%d", SYSCALL_GetTick());
+		//printf("A");
+		
+		printf("%d,", KeyBoardRead());
+		
 	}
 }
 
@@ -190,7 +207,7 @@ VOID hello_world_b() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		printf("B");
+		//printf("B");
 	}
 }
 VOID hello_world_c() {
@@ -198,14 +215,14 @@ VOID hello_world_c() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		printf("C");
+		//printf("C");
 	}
 }
 
 VOID load_task_table() {
-	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA",TestStack);
-	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2);
-	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3);
+	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA",TestStack,100);
+	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2,150);
+	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3,200);
 }
 
 VOID load_multi_task() {
@@ -218,8 +235,10 @@ VOID load_multi_task() {
 		KC_LoadProcessInfo(proc, ldtSelector+(i<<3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
 			KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), task_table[i].task_eip,
 			task_table[i].stack_ptr + task_table[i].stack_size, 0x1201);
-		KC_LoadDescriptor(&GDT[(ldtSelector+(i<<3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt), LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
-		
+		KC_LoadDescriptor(&GDT[(ldtSelector+(i<<3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
+			LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+		proc->priority = task_table[i].priority;
+		proc->remaining_ticks = proc->priority;
 	}
 }
 VOID set_syscall() {
@@ -229,6 +248,8 @@ VOID set_syscall() {
 VOID set_irq() {
 	KC_IRQ_Establish(KRNL_INT_IRQI_CLOCK, Ticks);
 	KC_IRQ_Enable(KRNL_INT_IRQI_CLOCK);
+	KC_IRQ_Establish(KRNL_INT_IRQI_KEYBOARD, KeyboardHandler);
+	KC_IRQ_Enable(KRNL_INT_IRQI_KEYBOARD);
 }
 
 VOID test() {
@@ -262,6 +283,24 @@ VOID kernel_main() {
 	while (1);
 }
 
+VOID KeyboardHandler(DWORD x) {
+	DWORD kp = KC_KB_GetScanCode();
+	if (kb_buffer.front != (kb_buffer.end + 1) % KB_BUFFER_CAPACITY) {
+		kb_buffer.buffer[kb_buffer.end] = (BYTE)(kp);
+		kb_buffer.end++;
+		kb_buffer.end %= KB_BUFFER_CAPACITY;
+	}
+}
+DWORD KeyBoardRead() {
+	if (kb_buffer.front != kb_buffer.end) {
+		DWORD rtn= kb_buffer.buffer[kb_buffer.front];
+		kb_buffer.front++;
+		kb_buffer.front %= KB_BUFFER_CAPACITY;
+		return rtn;
+	}
+	return -1;
+}
+
 VOID Ticks(DWORD x) {
 	K_Ticks++;
 
@@ -270,12 +309,6 @@ VOID Ticks(DWORD x) {
 		printf("+");
 		return;
 	}
-	printf("^");
-	
-	ProcessReady++;
-	if (ProcessReady >= ProcessTable + KRNL_PROC_MAXCNT)
-	{
-		ProcessReady = ProcessTable;
-	}
+	KC_ProcessSchedule();
 	
 }

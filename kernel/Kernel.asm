@@ -250,7 +250,7 @@ AFE_INT_0:
 	interrupt_master 0
 
 AFE_INT_1:
-	spurious_int_placeholder 1
+	interrupt_master 1
 AFE_INT_2:
 	spurious_int_placeholder 2
 AFE_INT_3:

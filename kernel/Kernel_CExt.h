@@ -23,7 +23,7 @@ VOID KCEX_PrintChar(UBYTE character);
 VOID KCEX_PrintString(UBYTE* chString);
 VOID KCEX_PrintByteHex(UBYTE arg);
 DWORD KCEX_Strlen(UBYTE* str);
-CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base);
+CHAR* KCEX_IntToChar(DWORD num, CHAR* str, UBYTE base);
 DWORD KCEX_PutChar(DWORD ch);
 DWORD KCEX_MemoryFill(CHAR* dest, UBYTE ch, UDWORD size);
 DWORD KCEX_PrintFormat(CHAR* format, ...);
@@ -128,8 +128,13 @@ DWORD KCEX_Strlen(UBYTE* str) {
 
 //【KCEX_IntToChar】
 // 将数字转化为字符串
-CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
+CHAR* KCEX_IntToChar(DWORD num, CHAR* str, UBYTE base){
 	CHAR base_map[16] = { '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
+	DWORD nflag = 0;
+	if (num < 0) {
+		num = -num;
+		nflag = 1;
+	}
 	if (base > 16 || base <= 1)
 		return str;
 	DWORD b = 1, x = 0;
@@ -142,6 +147,10 @@ CHAR* KCEX_IntToChar(UDWORD num, CHAR* str, UBYTE base){
 		x--;
 	}
 	CHAR* i = str;
+	if (nflag) {
+		*i = '-';
+		i++;
+	}
 	while (x>=0) {
 		(*i) = base_map[num / b];
 		num = num % b;

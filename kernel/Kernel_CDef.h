@@ -42,6 +42,9 @@ typedef double DOUBLE;
 #define VA_END(ap) (ap=(VA_LIST)0);
 #define VA_ARG(ap, type) (*(type*)((ap+=_INTSIZEOF(type))-_INTSIZEOF(type)))
 
+//数据结构
+#define ARV_QUEUE(buffer_size,type) struct{DWORD front;DWORD end;type buffer[buffer_size];}
+
 //GDT/IDT描述符
 typedef struct DESCRIPTOR_s{
 	UWORD limit_low;
@@ -112,7 +115,7 @@ typedef struct GATE_s{
 
 #define KRNL_RPL_SYS KRNL_RPL0
 #define KRNL_RPL_USR KRNL_RPL3
-//---------------------Inline Assembler---------------------
+//---------------------内联汇编-----------------------------
 #define GCCASM_INTEL_SYNTAX asm(".intel_syntax noprefix");
 #define GCCASM_ATT_SYNTAX asm(".att_syntax prefix");
 #define CRLF ""
@@ -190,6 +193,7 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 #define KRNL_INT_IRQ_COUNTS 16
 
 #define KRNL_INT_IRQI_CLOCK 0x0
+#define KRNL_INT_IRQI_KEYBOARD 0x1
 
 //----------------------中断提示----------------------------
 #define KRNL_INTTIPS_DE "#DE: Division by zero."
@@ -246,6 +250,8 @@ typedef struct s_task_struct {
 	STACK_FRAME regs;
 	SELECTOR_W ldt_selector;
 	DESCRIPTOR ldt[LDT_SIZE];
+	DWORD remaining_ticks;
+	DWORD priority;
 	PROC_PID pid;
 	CHAR proc_name[KRNL_PROC_NAME_LEN];
 }PROCESS;
@@ -253,6 +259,7 @@ typedef struct s_task_struct {
 typedef struct s_task {
 	HANDLER task_eip;
 	DWORD stack_size;
+	DWORD priority;
 	CHAR name[32];
 	UBYTE* stack_ptr;
 }TASK;
@@ -294,3 +301,106 @@ typedef VOID* SYSCALL;
 
 #define KRNL_SYSCALL_VEC_GETTICK 0x90
 
+//----------------------计时器------------------------------
+#define KRNL_HARDWARE_TIMERMODE 0x43
+#define KRNL_HARDWARE_TIMER0 0x40
+#define KRNL_HARDWARE_TIMER_RATEGEN 0x34
+#define KRNL_HARDWARE_TIMER_FREQ 1193182L
+#define KRNL_HARDWARE_TIMER_HZ 100
+
+//----------------------扫描码------------------------------
+#define KRNL_HW_KB_SCANCODE_CNT = 0x7F
+#define KRNL_HW_KB_SCANCODE_COL = 0x03
+#define KRNL_KB_FLAG_EXT 0x0100
+
+
+#define KRNL_KB_PAD_ENTER (0x30 + KRNL_KB_FLAG_EXT)
+
+#define KRNL_KB_ESC		(0x01 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_TAB		(0x02 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_ENTER		(0x03 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_BACKSPACE	(0x04 + KRNL_KB_FLAG_EXT)	
+
+#define KRNL_KB_GUI_L		(0x05 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_GUI_R		(0x06 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_APPS		(0x07 + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_SHIFT_L		(0x08 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_SHIFT_R		(0x09 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_CTRL_L		(0x0A + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_CTRL_R		(0x0B + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_ALT_L		(0x0C + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_ALT_R		(0x0D + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_CAPS_LOCK	(0x0E + KRNL_KB_FLAG_EXT)	
+#define	KRNL_KB_NUM_LOCK	(0x0F + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_SCROLL_LOCK	(0x10 + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_F1		(0x11 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F2		(0x12 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F3		(0x13 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F4		(0x14 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F5		(0x15 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F6		(0x16 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F7		(0x17 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F8		(0x18 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F9		(0x19 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F10		(0x1A + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F11		(0x1B + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_F12		(0x1C + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_PRINTSCREEN	(0x1D + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAUSEBREAK	(0x1E + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_INSERT		(0x1F + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_DELETE		(0x20 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_HOME		(0x21 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_END		(0x22 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAGEUP		(0x23 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAGEDOWN	(0x24 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_UP		(0x25 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_DOWN		(0x26 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_LEFT		(0x27 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_RIGHT		(0x28 + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_POWER		(0x29 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_SLEEP		(0x2A + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_WAKE		(0x2B + KRNL_KB_FLAG_EXT)	
+
+
+#define KRNL_KB_PAD_SLASH	(0x2C + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_STAR	(0x2D + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_MINUS	(0x2E + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_PLUS	(0x2F + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_ENTER	(0x30 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_DOT		(0x31 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_0		(0x32 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_1		(0x33 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_2		(0x34 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_3		(0x35 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_4		(0x36 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_5		(0x37 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_6		(0x38 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_7		(0x39 + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_8		(0x3A + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_9		(0x3B + KRNL_KB_FLAG_EXT)	
+#define KRNL_KB_PAD_UP		KRNL_KB_PAD_8			
+#define KRNL_KB_PAD_DOWN	KRNL_KB_PAD_2			
+#define KRNL_KB_PAD_LEFT	KRNL_KB_PAD_4			
+#define KRNL_KB_PAD_RIGHT	KRNL_KB_PAD_6			
+#define KRNL_KB_PAD_HOME	KRNL_KB_PAD_7			
+#define KRNL_KB_PAD_END		KRNL_KB_PAD_1			
+#define KRNL_KB_PAD_PAGEUP	KRNL_KB_PAD_9			
+#define KRNL_KB_PAD_PAGEDOWN	KRNL_KB_PAD_3			
+#define KRNL_KB_PAD_INS		KRNL_KB_PAD_0			
+#define KRNL_KB_PAD_MID		KRNL_KB_PAD_5			
+#define KRNL_KB_PAD_DEL		KRNL_KB_PAD_DOT			
+
+
+//----------------------键盘--------------------------------
+#define KB_BUFFER_CAPACITY 0x200
+typedef ARV_QUEUE(KB_BUFFER_CAPACITY, CHAR) KB_BUFFER;
