@@ -184,8 +184,17 @@ AF_DispChar:
 	mov al,[ebp+8]
 	mov ah,[ebp+12]
 	mov edi,ebx
+
+	push eax
+	mov eax,dword[DSPPOS]
+	cmp eax,8000
+	pop eax
+	ja AF_DispChar_Ignore
+	
+
 	;xchg bx,bx
 	mov [gs:edi],ax
+AF_DispChar_Ignore:
 	pop ebp
 	inc dword [DSPPOS]
 	inc dword [DSPPOS]

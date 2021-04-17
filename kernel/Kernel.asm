@@ -13,6 +13,7 @@ extern spurious_interrupt_request
 extern ProcessReady
 extern tss
 extern Ticks
+extern K_IntReenter
 ;宏
 %macro  spurious_int_placeholder    1
         push    %1
@@ -20,10 +21,29 @@ extern Ticks
         add     esp, 4
         hlt
 %endmacro
+
+%macro save_regs 0
+	pushad
+	push ds
+	push es
+	push fs
+	push gs
+%endmacro
+
+%macro recover_regs 0
+	pop gs
+	pop fs
+	pop es
+	pop ds
+	popad
+%endmacro
+
+;定义
+PROC_STACKTOP		equ 72
+TSS3_S_SP0		equ 4
+PROC_LDT_SELECTOR	equ 72
+
 ;开始
-
-
-
 
 [SECTION .bss]
 StackSpace		resb	2 * 1024
@@ -32,32 +52,27 @@ StackTop:
 [SECTION .text]
 
 global _start
-global restart
+global Restart
 
 _start: 
 	mov	esp, StackTop
-	xchg bx,bx
+	
 	call kernel_start
 	jmp $
 	
-restart:
-	 mov esp,[ProcessReady]  
-	 xchg bx,bx   
-	 lldt [esp+72]   
-	 lea eax,[esp+72]   
-	 mov dword[tss+4],eax   
-	 xchg bx,bx   
-	 pop gs   
-	 pop fs   
-	 pop es   
-	 pop ds   
-	 xchg bx,bx   
-	 popad   
-	 xchg bx,bx   
-	 add esp,4   
-	 xchg bx,bx   
-	;TEST EIP
-	 iretd 
+Restart:
+	mov esp,[ProcessReady]
+	mov eax,[esp+72]
+	
+	lldt [esp+72]
+	lea eax,[esp+PROC_STACKTOP]
+	mov dword [tss+TSS3_S_SP0],eax
+
+Restart_Reenter:
+	dec dword[K_IntReenter]
+	recover_regs
+	add esp,4
+	iretd
 ;中断
 global AFE_EXCEPTION_DE
 global AFE_EXCEPTION_DB
@@ -180,12 +195,38 @@ AFE_EXCEPTION_XM:
 	push 19
 	jmp exception_handle
 
+
 AFE_INT_0:
-	;inc byte[gs:0]
-	call Ticks
+	sub esp,4
+
+	save_regs
+
+	mov dx,ss
+	mov ds,dx
+	mov es,dx
+
 	mov al,0x20
 	out 0x20,al
-	iretd
+	
+
+	inc dword[K_IntReenter]
+	cmp dword[K_IntReenter],0
+	jne AFE_INT0_Flag1
+	
+	mov esp,StackTop
+	push Restart
+	jmp AFE_INT0_Flag2
+AFE_INT0_Flag1:
+	push Restart_Reenter
+AFE_INT0_Flag2:
+	sti
+	call Ticks
+	cli
+	ret
+
+
+
+
 AFE_INT_1:
 	spurious_int_placeholder 1
 AFE_INT_2:

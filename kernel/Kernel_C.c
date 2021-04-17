@@ -27,7 +27,7 @@ VOID kernel_start() {
 
 	UWORD* t_gdtLimit = (UWORD*)(&GDT_ptr[0]);
 	UDWORD* t_gdtBase = (UDWORD*)(&GDT_ptr[2]);
-	*t_gdtLimit = IDT_SIZE * sizeof(DESCRIPTOR) - 1;
+	*t_gdtLimit = GDT_SIZE * sizeof(DESCRIPTOR) - 1;
 	*t_gdtBase = (UDWORD)&GDT;
 	AF_LoadGlobalDescriptorTable(GDT_ptr);
 	
@@ -166,39 +166,88 @@ VOID initalize_interrupts() {
 }
 
 VOID hello_world() {
-	KCEX_PrintChar('w');
-	int i = 0;
-	while (1) {
-		int s = TickCount;
-		if (s < 0) {
-			s = -s;
-		}
-		AF_SetDispPos(0);
-		printf("Tick:%d", (s / 10) % 20);
+	while (1)
+	{
+		for (int i = 0; i < 2000; i++)
+			for (int k = 0; k < 200; k++);
+		printf("A");
 	}
 }
 
-VOID load_first_task() {
-	PROCESS* proc = &ProcessTable[0];
-	KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
-	KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
-	KC_LoadProcessInfo(proc, KRNL_LSELECTOR_NXT, KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
-		KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), hello_world,
-		TestStack + 8000, 0x1201);
-	KC_LoadDescriptor(&GDT[KRNL_LSELECTOR_NXT>>3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt), LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+VOID hello_world_b() {
+	while (1)
+	{
+		for (int i = 0; i < 2000; i++)
+			for (int k = 0; k < 200; k++);
+		printf("B");
+	}
+}
+VOID hello_world_c() {
+	while (1)
+	{
+		for (int i = 0; i < 2000; i++)
+			for (int k = 0; k < 200; k++);
+		printf("C");
+	}
 }
 
+VOID load_task_table() {
+	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA",TestStack);
+	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2);
+	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3);
+}
+
+VOID load_multi_task() {
+	SELECTOR_W ldtSelector = KRNL_LSELECTOR_NXT;
+	printf("\n");
+	for (DWORD i = 0; i < KRNL_PROC_MAXCNT; i++) {
+		PROCESS* proc = &ProcessTable[i];
+		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
+		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
+		KC_LoadProcessInfo(proc, ldtSelector+(i<<3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
+			KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), task_table[i].task_eip,
+			task_table[i].stack_ptr + task_table[i].stack_size, 0x1201);
+		KC_LoadDescriptor(&GDT[(ldtSelector+(i<<3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt), LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+		
+	}
+}
+
+
 VOID test() {
-	ProcessReady = ProcessTable;
-	restart();
+	ProcessReady = &ProcessTable[0];
+	Restart();
 }
 
 //内核开始
 VOID kernel_main() {
-	load_first_task();
+	//任务表
+	load_task_table();
+
+	//中断重入
+	K_IntReenter = 0;
+
+	//进程
+	load_multi_task();
 	KC_InitTSS();
 	test();
+
+	//完成
+	while (1);
 }
+
 VOID Ticks() {
 	TickCount++;
+	if (K_IntReenter != 0)
+	{
+		printf("+");
+		return;
+	}
+	printf("^");
+	
+	ProcessReady++;
+	if (ProcessReady >= ProcessTable + KRNL_PROC_MAXCNT)
+	{
+		ProcessReady = ProcessTable;
+	}
+	
 }

@@ -12,7 +12,13 @@
 #include "Kernel_GlobalVar.h"
 
 PROCESS ProcessTable[KRNL_PROC_MAXCNT];
+
 CHAR TestStack[8000];
+CHAR TestStack2[8000];
+CHAR TestStack3[8000];
+
 TSS tss;
 PROCESS* ProcessReady;
 DWORD TickCount;
+
+TASK task_table[KRNL_PROC_MAXCNT];

@@ -77,7 +77,7 @@ typedef struct GATE_s{
 #define GDTR_SIZE 6
 #define IDT_SIZE 256
 #define IDTR_SIZE 6
-#define LDT_SIZE 128
+#define LDT_SIZE 2
 #define LDTR_SIZE 6
 
 #define SELECTOR_KERNEL_CS 8
@@ -126,8 +126,9 @@ typedef struct GATE_s{
 
 #define KRNL_LSELECTOR_VIDEO KRNL_LSELECTOR_CGA
 
-#define KRNL_LSELECTOR_NXT 0x30
-#define KRNL_LSELECTOR_TSS 0x38
+#define KRNL_LSELECTOR_TSS 0x30
+#define KRNL_LSELECTOR_NXT 0x38
+
 
 //---------------------IDT/GDT/LDT处理----------------------
 typedef struct s_SELECTOR_S {
@@ -206,7 +207,12 @@ typedef struct s_SELECTOR_S {
 
 //----------------------进程控制----------------------------
 #define KRNL_PROC_NAME_LEN 16
-#define KRNL_PROC_MAXCNT 1
+#define KRNL_PROC_MAXCNT 3
+#define KRNL_PROC_MAXTASKCNT KRNL_PROC_MAXCNT
+
+#define KRNL_PROC_SINGLESTACK 8000
+#define KRNL_PROC_TOTALSTACK (KRNL_PROC_MAXCNT*KRNL_PROC_SINGLESTACK)
+
 typedef UDWORD PROC_PID;
 typedef struct s_stackframe {
 	UDWORD	gs;		
@@ -237,6 +243,13 @@ typedef struct s_task_struct {
 	PROC_PID pid;
 	CHAR proc_name[KRNL_PROC_NAME_LEN];
 }PROCESS;
+
+typedef struct s_task {
+	HANDLER task_eip;
+	DWORD stack_size;
+	CHAR name[32];
+	UBYTE* stack_ptr;
+}TASK;
 
 typedef struct s_tss {
 	UDWORD	backlink;

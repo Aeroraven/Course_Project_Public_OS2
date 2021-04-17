@@ -40,7 +40,7 @@ VOID KC_LoadDescriptor(DESCRIPTOR* p_desc, UDWORD base, UDWORD limit, UWORD attr
 
 VOID KC_LoadProcessInfo(PROCESS* proc,SELECTOR_W ldt_selector, SELECTOR_S cs, SELECTOR_S ds, SELECTOR_S es, SELECTOR_S fs,
 	SELECTOR_S gs, SELECTOR_S ss, HANDLER proc_entry, DWORD stack_address, DWORD eflag) {
-	AF_VMBreakPoint();
+	//AF_VMBreakPoint();
 	proc->ldt_selector = ldt_selector;
 	proc->regs.cs = KRNL_LDSREG_S(cs);
 	proc->regs.ds = KRNL_LDSREG_S(ds);
@@ -51,7 +51,7 @@ VOID KC_LoadProcessInfo(PROCESS* proc,SELECTOR_W ldt_selector, SELECTOR_S cs, SE
 	proc->regs.eip = (UDWORD)proc_entry;
 	proc->regs.esp = stack_address;
 	proc->regs.eflags = eflag;
-	AF_VMBreakPoint();
+	//AF_VMBreakPoint();
 }
 VOID KC_DuplicateDescriptor(DESCRIPTOR* dest, DESCRIPTOR* src) {
 	AF_MemoryCopy(dest, src, sizeof(DESCRIPTOR));
@@ -80,4 +80,19 @@ VOID KC_InitTSS() {
 	KC_LoadDescriptor(&GDT[KRNL_LSELECTOR_TSS >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&tss), sizeof(TSS) - 1, KRNL_DESCRIPTOR_ATTR_386TSS);
 	tss.iobase = sizeof(tss);
 	AF_LTRAxCall(KRNL_LSELECTOR_TSS);
+}
+VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname,UBYTE* stack_addr) {
+	for (CHAR* i = taskname, *j = task_table[id].name;;)
+	{
+		*j = *i;
+		if (*i == '\0')
+		{
+			break;
+		}
+		i++;
+		j++;
+	}
+	task_table[id].stack_size = stacksize;
+	task_table[id].task_eip = handler;
+	task_table[id].stack_ptr = stack_addr;
 }
