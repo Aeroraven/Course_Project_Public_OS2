@@ -27,7 +27,7 @@ IRQ_HANDLER irq_handler[KRNL_INT_IRQ_COUNTS];
 SYSCALL syscall_table[KRNL_SYSCALL_COUNTS];
 
 UWORD KRNL_KeyMap[0x180]= {
-	0, 0, 0,
+		0, 0, 0,
 		KRNL_KB_ESC, KRNL_KB_ESC, 0,
 		'1', '!', 0,
 		'2', '@', 0,

@@ -19,6 +19,7 @@ VOID KeyboardHandler(DWORD);
 VOID spurious_interrupt_request(UDWORD);
 VOID SystemCall();
 DWORD KeyBoardRead();
+VOID keyboard_scancode_read();
 
 STATIC KB_BUFFER kb_buffer;
 
@@ -72,8 +73,10 @@ VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD c
 		case 6:
 			KCEX_PrintStringE(KRNL_INTTIPS_UD);
 			break;
-		case 13:
+		case 12:
 			KCEX_PrintStringE(KRNL_INTTIPS_SS);
+		case 13:
+			KCEX_PrintStringE(KRNL_INTTIPS_GP);
 			break;
 		default:
 			KCEX_PrintStringE(KRNL_INTTIPS_UNKNOWN);
@@ -149,6 +152,7 @@ VOID spurious_interrupt_request(UDWORD idx) {
 VOID initalize_interrupts() {
 	initialize_8259A();
 	//异常
+
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_DIVIDE, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_DE, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_DEBUG, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_DB, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_NMI, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_NMI, KRNL_PRIVL_SYS);
@@ -197,8 +201,8 @@ VOID hello_world() {
 		//printf("%d", SYSCALL_GetTick());
 		//printf("A");
 		
-		printf("%d,", KeyBoardRead());
-		
+		//printf("%d,", KeyBoardRead());
+		//keyboard_scancode_read();
 	}
 }
 
@@ -259,8 +263,11 @@ VOID test() {
 
 //内核开始
 VOID kernel_main() {
-	//系统计时
+	
 	K_Ticks = 0;
+
+	//键盘ScanCode映射初始化
+	KC_KB_InitScanCodeMapping();
 
 	//任务表
 	load_task_table();
@@ -290,6 +297,7 @@ VOID KeyboardHandler(DWORD x) {
 		kb_buffer.end++;
 		kb_buffer.end %= KB_BUFFER_CAPACITY;
 	}
+	keyboard_scancode_read();
 }
 DWORD KeyBoardRead() {
 	if (kb_buffer.front != kb_buffer.end) {
@@ -311,4 +319,33 @@ VOID Ticks(DWORD x) {
 	}
 	KC_ProcessSchedule();
 	
+}
+
+VOID keyboard_scancode_read() {
+	UBYTE scancode;
+	UBYTE output[2] = { 0,0 };
+	BOOL isMake;
+	GCCASM_INTEL_SYNTAX;
+	_cli;
+	UBYTE kbread = KeyBoardRead();
+	_sti;
+	if (kbread != -1) {
+		
+		scancode = kbread;
+		if (scancode == 0xe1) {
+
+		}
+		else if (scancode == 0xe0) {
+
+		}
+		else {
+			
+			isMake = ((scancode & 0x80) == 0);
+			
+			if (isMake) {
+				printf("%d|", KRNL_KeyMap[scancode*3]);
+			}
+		}
+		
+	}
 }

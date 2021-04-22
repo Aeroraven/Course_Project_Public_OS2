@@ -27,6 +27,7 @@ typedef UDWORD SELECTOR_W;
 
 typedef void VOID;
 typedef char CHAR;
+typedef char BOOL;
 
 typedef char* CCSTRING; //×Ö·û´®Ö¸Õë
 typedef void (*HANDLER)(); //º¯ÊýÖ¸Õë

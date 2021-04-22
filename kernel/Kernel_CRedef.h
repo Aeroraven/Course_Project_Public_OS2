@@ -56,3 +56,6 @@
 #define __cli AF_CLICall //(ASM) CLI ЦёБо
 #define __hlt AF_HLTCall //(ASM) HLT ЦёБо
 #define __ltr AF_LTRAxCall //(ASM) LTR ЦёБо
+
+#define _cli asm("cli");
+#define _sti asm("sti");
