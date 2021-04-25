@@ -621,15 +621,9 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	;内存分页
 	call FUNC_MemoryPaging
 	call FUNC_RearrangeKernel
-
-	;暂停进入Kernel
-	jmp $
-
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
-
-
-FUNC_VesaTest:
+FUNC_VESATest:
 	xchg bx,bx
 	mov ecx,0xcfffffff
 	mov edi,0
@@ -638,6 +632,7 @@ testHere:
 	mov ax,0xbbbb
 	mov [gs:edi],ax
 	jmp testHere
+
 	jmp $
 
 
@@ -894,9 +889,9 @@ FUNC_RearrangeKernel:
 	add	eax, CONST_KERNEL_BasePhyAddr
 	push eax
 	push dword [esi + 08h]
-	;BREAK_PT
+	BREAK_PT
 	call FUNC_MemoryCopy
-	;BREAK_PT
+	BREAK_PT
 	add	esp, 12	
 .NoAction:
 	add	esi, 020h

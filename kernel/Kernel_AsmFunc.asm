@@ -82,6 +82,8 @@ global AF_LTRAxCall
 
 global AF_SystemCallInt
 
+global AF_VESA_PutPixel
+
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
 ;		PUSH (dd)来源指针
@@ -167,10 +169,7 @@ AF_SaveGlobalDescriptorTable:
 
 ;函数 AF_VMBreakPoint [保护模式] - 虚拟机断点(0作结尾)
 AF_VMBreakPoint:
-	push ebp
-	mov ebp,esp
 	xchg bx,bx
-	pop ebp
 	ret
 
 
@@ -200,6 +199,23 @@ AF_DispChar_Ignore:
 	pop ebp
 	inc dword [DSPPOS]
 	inc dword [DSPPOS]
+	ret
+
+AF_VESA_PutPixel:
+	push ebp
+	mov ebp,esp
+	mov eax,[ebp+8]
+	mov edi,eax ;WHERE
+	mov eax,[ebp+12]
+	and eax,0xff
+	mov dword [gs:edi],eax ;BLUE
+	mov eax,[ebp+16]
+	inc edi
+	mov dword [gs:edi],eax ;GREEN
+	inc edi
+	mov eax,[ebp+20]
+	mov dword [gs:edi],eax ;RED
+	pop ebp
 	ret
 
 ;函数 AF_DispChar [保护模式] - 保存输出位置

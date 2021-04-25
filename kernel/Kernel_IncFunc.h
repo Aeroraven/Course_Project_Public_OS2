@@ -112,6 +112,8 @@ VOID AF_LTRAxCall(SELECTOR_W selector_task);
 // 系统调用：获取Tick
 DWORD SYSCALL_GetTick();
 
+VOID AF_VESA_PutPixel(DWORD position, DWORD blue, DWORD green, DWORD red);
+
 //----------------------------------------
 //	异常和中断(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------

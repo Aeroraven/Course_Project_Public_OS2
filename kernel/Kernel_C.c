@@ -26,9 +26,11 @@ STATIC KB_BUFFER kb_buffer;
 
 //初始化内核
 VOID kernel_start() {
+	//显示初始化
+	KRNL_VESAFont_Row = 0;
+	KRNL_VESAFont_Col = 0;
+	KC_VIDEO_SetVESAFont();
 
-	printf("%s%x", "His birthday is ", 19260817);
-	
 	//复制GDT
 	AF_SaveGlobalDescriptorTable((GDTPTR)GDT_ptr);
 	AF_MemoryCopy(&GDT, (ANYPTR)(*((UDWORD*)(&GDT_ptr[2]))), *((UWORD*)(&GDT_ptr[0]) + 1));
@@ -38,14 +40,14 @@ VOID kernel_start() {
 	*t_gdtLimit = GDT_SIZE * sizeof(DESCRIPTOR) - 1;
 	*t_gdtBase = (UDWORD)&GDT;
 	AF_LoadGlobalDescriptorTable(GDT_ptr);
-	
+
 	//处理IDT
 	UWORD* t_idtLimit = (UWORD*)(&IDT_ptr[0]);
 	UDWORD* t_idtBase = (UDWORD*)(&IDT_ptr[2]);
 	*t_idtLimit = IDT_SIZE * sizeof(GATE) - 1;
 	*t_idtBase = (UDWORD)&IDT;
 	AF_LoadInterruptDescriptorTable(IDT_ptr);
-	
+
 	initalize_interrupts();
 
 	//开始处理
@@ -54,14 +56,17 @@ VOID kernel_start() {
 
 //异常处理
 VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD cs, DWORD eflag) {
-	AF_SetDispPos(0);
-	for (int i = 0; i < 25; i++) {
-		KCEX_PrintStringE("\n");
+	KRNL_VESAFont_Row = 0;
+	KRNL_VESAFont_Col = 0;
+	for (int i = 0; i < KRNL_VESAFont_Row; i++) {
+		for (int i = 0; i < KRNL_VESAFont_Col; i++)
+			KCEX_PutChar(' ');
 	}
-	AF_SetDispPos(0);
+	KRNL_VESAFont_Row = 0;
+	KRNL_VESAFont_Col = 0;
 	KCEX_PrintStringE("Exception Detected!\n");
 	CHAR buffer[2000];
-	
+
 	KCEX_PrintStringE("----------------------\n");
 	KCEX_PrintStringE("Info:(");
 	KCEX_PrintStringE(KCEX_IntToChar(int_vector_no, buffer, 10));
@@ -91,11 +96,11 @@ VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD c
 	KCEX_PrintStringE("IPReg:");
 	KCEX_PrintStringE(KCEX_IntToChar(eip, buffer, 16));
 	KCEX_PrintStringE("\n\n");
-	
+
 	KCEX_PrintStringE("CodeSeg:");
 	KCEX_PrintStringE(KCEX_IntToChar(cs, buffer, 16));
 	KCEX_PrintStringE("\n\n");
-	
+
 	KCEX_PrintStringE("Flag:");
 	KCEX_PrintStringE(KCEX_IntToChar(eflag, buffer, 16));
 	KCEX_PrintStringE("\n\n");
@@ -106,7 +111,7 @@ VOID exception_handler(DWORD int_vector_no, DWORD error_code, DWORD eip, DWORD c
 
 //8259A初始化
 VOID initialize_8259A() {
-	
+
 	AF_OutPort(KRNL_INT_M_CTL, 0x11);
 	AF_OutPort(KRNL_INT_S_CTL, 0x11);
 	AF_OutPort(KRNL_INT_M_CTLMASK, KRNL_INT_VECTOR_IRQ0);
@@ -200,7 +205,7 @@ VOID hello_world() {
 			for (int k = 0; k < 200; k++);
 		//printf("%d", SYSCALL_GetTick());
 		//printf("A");
-		
+
 		//printf("%d,", KeyBoardRead());
 		//keyboard_scancode_read();
 	}
@@ -222,11 +227,16 @@ VOID hello_world_c() {
 		//printf("C");
 	}
 }
-
+VOID tty() {
+	while (1) {
+		keyboard_scancode_read();
+	}
+}
 VOID load_task_table() {
-	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA",TestStack,100);
-	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2,150);
-	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3,200);
+	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA", TestStack, 10, 3);
+	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 15, 3);
+	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 20, 3);
+	KC_LoadTaskTable(3, tty, KRNL_PROC_SINGLESTACK, "TaskC", TestStack4, 20, 3);
 }
 
 VOID load_multi_task() {
@@ -236,10 +246,10 @@ VOID load_multi_task() {
 		PROCESS* proc = &ProcessTable[i];
 		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
 		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
-		KC_LoadProcessInfo(proc, ldtSelector+(i<<3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
+		KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
 			KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), task_table[i].task_eip,
 			task_table[i].stack_ptr + task_table[i].stack_size, 0x1201);
-		KC_LoadDescriptor(&GDT[(ldtSelector+(i<<3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
+		KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
 			LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
 		proc->priority = task_table[i].priority;
 		proc->remaining_ticks = proc->priority;
@@ -263,7 +273,7 @@ VOID test() {
 
 //内核开始
 VOID kernel_main() {
-	
+
 	K_Ticks = 0;
 
 	//键盘ScanCode映射初始化
@@ -297,11 +307,11 @@ VOID KeyboardHandler(DWORD x) {
 		kb_buffer.end++;
 		kb_buffer.end %= KB_BUFFER_CAPACITY;
 	}
-	keyboard_scancode_read();
+	//keyboard_scancode_read();
 }
 DWORD KeyBoardRead() {
 	if (kb_buffer.front != kb_buffer.end) {
-		DWORD rtn= kb_buffer.buffer[kb_buffer.front];
+		DWORD rtn = kb_buffer.buffer[kb_buffer.front];
 		kb_buffer.front++;
 		kb_buffer.front %= KB_BUFFER_CAPACITY;
 		return rtn;
@@ -318,7 +328,7 @@ VOID Ticks(DWORD x) {
 		return;
 	}
 	KC_ProcessSchedule();
-	
+
 }
 
 VOID keyboard_scancode_read() {
@@ -326,11 +336,11 @@ VOID keyboard_scancode_read() {
 	UBYTE output[2] = { 0,0 };
 	BOOL isMake;
 	GCCASM_INTEL_SYNTAX;
-	_cli;
+	//_cli;
 	UBYTE kbread = KeyBoardRead();
-	_sti;
+	//_sti;
 	if (kbread != -1) {
-		
+
 		scancode = kbread;
 		if (scancode == 0xe1) {
 
@@ -339,13 +349,13 @@ VOID keyboard_scancode_read() {
 
 		}
 		else {
-			
+
 			isMake = ((scancode & 0x80) == 0);
-			
+
 			if (isMake) {
-				printf("%d|", KRNL_KeyMap[scancode*3]);
+				printf("%c", KRNL_KeyMap[scancode * 3]);
 			}
 		}
-		
+
 	}
 }

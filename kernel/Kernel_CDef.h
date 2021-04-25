@@ -92,8 +92,15 @@ typedef struct GATE_s{
 #define CGA_EXCEPTION_COLOR_W 0x0C //异常CGA颜色
 
 //VESA FONT
-#define VESA_FONT_ROWS 28
-#define VESA_FONT_COLS 18
+#define VESA_FONT_ROWS 19
+#define VESA_FONT_COLS 12
+
+#define VESA_RES_H 768
+#define VESA_RES_W 1024
+
+#define VESA_FONT_COLMAX (VESA_RES_W/VESA_FONT_COLS-1)
+
+
 
 //其他
 #define KCEX_PRINTF_BUFFERSIZE 1000
@@ -128,11 +135,12 @@ typedef struct GATE_s{
 #define KRNL_LSELECTOR_EMPTY 0x0
 #define KRNL_LSELECTOR_GENERAL 0x8
 #define KRNL_LSELECTOR_GENERALDATA 0x10
-#define KRNL_LSELECTOR_CGA 0x18
-#define KRNL_LSELECTOR_MDA 0x20
-#define KRNL_LSELECTOR_VGA 0x28
+#define KRNL_LSELECTOR_CGA 0x18 //Deprecated
+#define KRNL_LSELECTOR_MDA 0x20 //Deprecated
+#define KRNL_LSELECTOR_VGA 0x28 //Deprecated
+#define KRNL_LSELECTOR_VESA 0x30
 
-#define KRNL_LSELECTOR_VIDEO KRNL_LSELECTOR_CGA
+#define KRNL_LSELECTOR_VIDEO KRNL_LSELECTOR_VESA
 
 #define KRNL_LSELECTOR_W_BEGIN 0x50
 #define KRNL_LSELECTOR_TSS (KRNL_LSELECTOR_W_BEGIN+0x8*1)
@@ -223,11 +231,15 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 
 //----------------------进程控制----------------------------
 #define KRNL_PROC_NAME_LEN 16
-#define KRNL_PROC_MAXCNT 3
+#define KRNL_PROC_MAXCNT 4
 #define KRNL_PROC_MAXTASKCNT KRNL_PROC_MAXCNT
 
 #define KRNL_PROC_SINGLESTACK 8000
 #define KRNL_PROC_TOTALSTACK (KRNL_PROC_MAXCNT*KRNL_PROC_SINGLESTACK)
+
+#define KRNL_PROC_RINGPRIV_SYS 0
+#define KRNL_PROC_RINGPRIV_USR 3
+
 
 typedef UDWORD PROC_PID;
 typedef struct s_stackframe {
@@ -268,6 +280,7 @@ typedef struct s_task {
 	DWORD priority;
 	CHAR name[32];
 	UBYTE* stack_ptr;
+	UBYTE privilege;
 }TASK;
 
 typedef struct s_tss {

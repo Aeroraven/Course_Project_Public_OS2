@@ -13,6 +13,8 @@ extern spurious_interrupt_request
 extern ProcessReady
 extern tss
 extern Ticks
+extern KRNL_VESAFont_Row
+extern KRNL_VESAFont_Col
 extern K_IntReenter
 extern irq_handler
 extern syscall_table

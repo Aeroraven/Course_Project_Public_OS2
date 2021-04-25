@@ -36,35 +36,37 @@ VOID KC_IDT_LoadGate(UDWORD vector, UBYTE desc_type, HANDLER handler, UBYTE priv
 VOID KCEX_PrintChar(UBYTE character) {
 	DWORD CGA_CURRENTCOL = 0; //CGA当前列
 	if (character != '\n') {
-		AF_DispChar((UDWORD)character, CGA_DEFAULT_COLOR);
-		AF_GetDispPos(&CGA_CURRENTCOL);
-		if (CGA_CURRENTCOL >= CGA_COLMAX) {
+		KC_VESA_PutChar(character, KRNL_VESAFont_Row, KRNL_VESAFont_Col, 0xff, 0xff, 0xff);
+		CGA_CURRENTCOL = KRNL_VESAFont_Col;
+		KRNL_VESAFont_Col++;
+		if (CGA_CURRENTCOL >= VESA_FONT_COLMAX) {
 			CGA_CURRENTCOL = 0;
+			KRNL_VESAFont_Row = KRNL_VESAFont_Row + 1;
+			KRNL_VESAFont_Col = 0;
 		}
 		return;
 	}
-	AF_GetDispPos(&CGA_CURRENTCOL);
-	DWORD CGA_Remain = CGA_CURRENTCOL % (CGA_COLMAX * 2);
-	for (DWORD i = 0; i < (CGA_COLMAX * 2 - CGA_Remain) / 2; i++) {
-		AF_DispChar(' ', CGA_DEFAULT_COLOR);
-	}
+	KRNL_VESAFont_Row++;
+	CGA_CURRENTCOL = 0;
+	KRNL_VESAFont_Col = 0;
 }
 
 VOID KCEX_PrintChar_Except(UBYTE character) {
 	DWORD CGA_CURRENTCOL = 0; //CGA当前列
 	if (character != '\n') {
-		AF_DispChar((UDWORD)character, CGA_EXCEPTION_COLOR_W);
-		AF_GetDispPos(&CGA_CURRENTCOL);
-		if (CGA_CURRENTCOL >= CGA_COLMAX) {
+		KC_VESA_PutChar(character, KRNL_VESAFont_Row, KRNL_VESAFont_Col, 0xff, 0, 0);
+		CGA_CURRENTCOL = KRNL_VESAFont_Col;
+		KRNL_VESAFont_Col++;
+		if (CGA_CURRENTCOL >= VESA_FONT_COLMAX) {
 			CGA_CURRENTCOL = 0;
+			KRNL_VESAFont_Row = KRNL_VESAFont_Row + 1;
+			KRNL_VESAFont_Col = 0;
 		}
 		return;
 	}
-	AF_GetDispPos(&CGA_CURRENTCOL);
-	DWORD CGA_Remain = CGA_CURRENTCOL % (CGA_COLMAX * 2);
-	for (DWORD i = 0; i < (CGA_COLMAX * 2 - CGA_Remain) / 2; i++) {
-		AF_DispChar(' ', CGA_EXCEPTION_COLOR_W);
-	}
+	KRNL_VESAFont_Row++;
+	CGA_CURRENTCOL = 0;
+	KRNL_VESAFont_Col = 0;
 }
 
 //【KCEX_PrintString】
@@ -164,7 +166,7 @@ CHAR* KCEX_IntToChar(DWORD num, CHAR* str, UBYTE base){
 //【KCEX_PutChar】
 // 打印字符
 DWORD KCEX_PutChar(DWORD ch) {
-	AF_DispChar(ch, CGA_DEFAULT_COLOR_W);
+	KCEX_PrintChar(ch);
 	return ch;
 }
 
