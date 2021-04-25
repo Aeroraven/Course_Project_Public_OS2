@@ -91,6 +91,10 @@ typedef struct GATE_s{
 #define CGA_WARNING_COLOR_W 0x0E //警告CGA颜色
 #define CGA_EXCEPTION_COLOR_W 0x0C //异常CGA颜色
 
+//VESA FONT
+#define VESA_FONT_ROWS 28
+#define VESA_FONT_COLS 18
+
 //其他
 #define KCEX_PRINTF_BUFFERSIZE 1000
 #define KCEX_MATH_TAYLOR_LIM 40
@@ -130,8 +134,9 @@ typedef struct GATE_s{
 
 #define KRNL_LSELECTOR_VIDEO KRNL_LSELECTOR_CGA
 
-#define KRNL_LSELECTOR_TSS 0x30
-#define KRNL_LSELECTOR_NXT 0x38
+#define KRNL_LSELECTOR_W_BEGIN 0x50
+#define KRNL_LSELECTOR_TSS (KRNL_LSELECTOR_W_BEGIN+0x8*1)
+#define KRNL_LSELECTOR_NXT (KRNL_LSELECTOR_W_BEGIN+0x8*2)
 
 
 //---------------------IDT/GDT/LDT处理----------------------

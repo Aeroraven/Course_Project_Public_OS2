@@ -35,6 +35,55 @@ VARIABLES_REAL_MODE_1:
 	DD_MEMORY_SIZE					dd 0x0
 
 	DW_TMP							dw 0x0
+	
+	DBF_VESA_INFO_BUFFER:			
+	VESA_ModeAttributes dw 0 ; mode attributes
+	VESA_WinAAttributes db 0 ; window A attributes
+	VESA_WinBAttributes db 0 ; window B attributes
+	VESA_WinGranularity dw 0 ; window granularity
+	VESA_WinSize dw 0 ; window size
+	VESA_WinASegment dw 0 ; window A start segment
+	VESA_WinBSegment dw 0 ; window B start segment
+	VESA_WinFuncPtr dd 0 ; real mode pointer to window function
+	VESA_BytesPerScanLine dw 0 ; bytes per scan line
+	VESA_XResolution dw 0 ; horizontal resolution in pixels or characters3
+	VESA_YResolution dw 0 ; vertical resolution in pixels or characters
+	VESA_XCharSize db 0 ; character cell width in pixels
+	VESA_YCharSize db 0 ; character cell height in pixels
+	VESA_NumberOfPlanes db 0 ; number of memory planes
+	VESA_BitsPerPixel db 0 ; bits per pixel
+	VESA_NumberOfBanks db 0 ; number of banks
+	VESA_MemoryModel db 0 ; memory model type
+	VESA_BankSize db 0 ; bank size in KB
+	VESA_NumberOfImagePages db 0 ; number of images
+	VESA_Reserved db 1 ; reserved for page function
+	VESA_RedMaskSize db 0 ; size of direct color red mask in bits
+	VESA_RedFieldPosition db 0 ; bit position of lsb of red mask
+	VESA_GreenMaskSize db 0 ; size of direct color green mask in bits
+	VESA_GreenFieldPosition db 0 ; bit position of lsb of green mask
+	VESA_BlueMaskSize db 0 ; size of direct color blue mask in bits
+	VESA_BlueFieldPosition db 0 ; bit position of lsb of blue mask
+	VESA_RsvdMaskSize db 0 ; size of direct color reserved mask in bits
+	VESA_RsvdFieldPosition db 0 ; bit position of lsb of reserved mask
+	VESA_DirectColorModeInfo db 0 ; direct color mode attributes
+	VESA_PhysBasePtr dd 0 ; physical address for flat memory frame buffer
+	VESA_Reserved1 dd 0 ; Reserved - always set to 0
+	VESA_Reserved2 dw 0 ; Reserved - always set to 0
+	VESA_LinBytesPerScanLine dw 0 ; bytes per scan line for linear modes
+	VESA_BnkNumberOfImagePages db 0 ; number of images for banked modes
+	VESA_LinNumberOfImagePages db 0 ; number of images for linear modes
+	VESA_LinRedMaskSize db 0 ; size of direct color red mask (linear modes)
+	VESA_LinRedFieldPosition db 0 ; bit position of lsb of red mask (linear modes)
+	VESA_LinGreenMaskSize db 0 ; size of direct color green mask (linear modes)
+	VESA_LinGreenFieldPosition db 0 ; bit position of lsb of green mask (linear modes)
+	VESA_LinBlueMaskSize db 0 ; size of direct color blue mask (linear modes)
+	VESA_LinBlueFieldPosition db 0 ; bit position of lsb of blue mask (linear modes)
+	VESA_LinRsvdMaskSize db 0 ; size of direct color reserved mask (linear modes)
+	VESA_LinRsvdFieldPosition db 0 ; bit position of lsb of reserved mask (linear modes)
+	VESA_MaxPixelClock dd 0 ; maximum pixel clock (in Hz) for graphics mode
+	DBF_MEMORY_ARDS_BUFFER_PLACEHOLDER:			times 256	db 0
+
+	VESAQ_1	equ VESA_PhysBasePtr-DBF_VESA_INFO_BUFFER
 
 VARIABLES_PROTECTED_MODE_1:
 	DBP_DISPLAY_PRINTLINE			equ DB_DISPLAY_PRINTLINE + CONST_LOADER_BasePhyAddr
@@ -54,7 +103,8 @@ LABEL_GDT:
 	DESC_CGA_VIDEO:					DESCRIPTOR CONST_VIDEOMEMORY_CGA_COLTEXT_BASE, CONST_VIDEOMEMORY_CGA_LIMIT, CONST_DAPS_CGA_VIDEO_R3
 	DESC_VGA_VIDEO:					DESCRIPTOR CONST_VIDEOMEMORY_VGA_BASE, CONST_VIDEOMEMORY_VGA_LIMIT, CONST_DAPS_VGA_VIDEO_R3
 	DESC_MDA_VIDEO:					DESCRIPTOR CONST_VIDEOMEMORY_MDA_BASE, CONST_VIDEOMEMORY_MDA_LIMIT, CONST_DAPS_MDA_VIDEO_R3
-
+	DESC_VESA_VIDEO:				DESCRIPTOR CONST_VIDEOMEMORY_VESA_BASE, CONST_VIDEOMEMORY_VESA_LIMIT, CONST_DAPS_VESA_VIDEO_R3
+	
 LABEL_GDTPTR:
 	EQ_GDTLEN						equ $-LABEL_GDT
 	PTR_GDTPTR						dw EQ_GDTLEN-1
@@ -67,6 +117,7 @@ LABEL_SELECTOR:
 	SELECTOR_CGA_VIDEO				equ DESC_CGA_VIDEO - LABEL_GDT + CONST_SA_RPL3
 	SELECTOR_VGA_VIDEO				equ DESC_VGA_VIDEO - LABEL_GDT + CONST_SA_RPL3
 	SELECTOR_MDA_VIDEO				equ DESC_MDA_VIDEO - LABEL_GDT + CONST_SA_RPL3
+	SELECTOR_VESA_VIDEO				equ DESC_VESA_VIDEO - LABEL_GDT + CONST_SA_RPL3
 	
 LABEL_PROGRAM_START:
 	;初始化段寄存器和栈
@@ -83,7 +134,6 @@ LABEL_PROGRAM_START:
 	mov bp,CONST_LOADER_Loaded
 	call _FUNC_DisplayString
 
-	
 	;FAT读取相关量初始化
 	mov ax, [CONST_FAT12_BPB_RootEntCnt]
 	mov bx, 0x0020
@@ -205,6 +255,24 @@ LABEL_FILE_LOADED:
 	
 	;清屏
 	INT10_ScrollUp 0, CONST_BINT_WHITE_FG|CONST_BINT_BLACK_BG, 0x0, 0xffff
+
+	;VESA VGA显存设置
+	mov ax,0x4f02
+	mov bx,CONST_VESA_DISPLAY_MODE
+	int 10h
+	mov cx,CONST_VESA_DISPLAY_MODE
+	mov ax,ds
+	mov es,ax
+	mov di,DBF_VESA_INFO_BUFFER
+	mov ax,0x4f01
+	int 10h
+	BgaWriteRegister VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED
+	BgaWriteRegister VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED
+	mov ax,di
+	mov si,VESA_PhysBasePtr
+	mov ecx,[ds:si]
+	xchg bx,bx
+	add ax,4
 
 	;Protected Mode 准备
 	
@@ -535,7 +603,7 @@ ALIGN	32
 [BITS	32]
 LABEL_PROGRAM_PROTECTMODE_START:
 	;GS寄存器将指向显存Selector
-	mov ax,SELECTOR_CGA_VIDEO
+	mov ax,SELECTOR_VESA_VIDEO
 	mov gs,ax
 
 	;初始化段寄存器
@@ -548,42 +616,29 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	
 	;坐标重置
 	call FUNC_DisplayResetPM
-
-	mov bx,0x0404
-	mov ah, 0xFF
-	mov al, 'R'
-	;call FUNC_CGADisplayCharPM
-
-
-
-	call FUNC_DisplayNewLinePM
-
-	;坐标重置
-	call FUNC_DisplayResetPM
-
-	mov ah, 0Fh
-	mov al,8
 	
-	mov ebp,DDP_TEST
-	
-	;call FUNC_CGADisplayIntPM
 
-
-	call FUNC_DisplayNewLinePM
-
-	mov ah, 0Fh
-	mov al,8
-	mov ebp,DDP_MEMORY_SIZE
-	;call FUNC_CGADisplayIntPM
-
-	call FUNC_DisplayNewLinePM
-	mov ah, 2Fh
-	mov ebp,DSP_TEST
-	;call FUNC_CGADisplayStringPM
+	;内存分页
 	call FUNC_MemoryPaging
 	call FUNC_RearrangeKernel
+
+	;暂停进入Kernel
+	jmp $
+
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
+
+
+FUNC_VesaTest:
+	xchg bx,bx
+	mov ecx,0xcfffffff
+	mov edi,0
+testHere:
+	inc edi
+	mov ax,0xbbbb
+	mov [gs:edi],ax
+	jmp testHere
+	jmp $
 
 
 ;函数: CGADisplayCharPM [保护模式]: 在CGA显存中写入字符
