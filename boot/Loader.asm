@@ -271,7 +271,7 @@ LABEL_FILE_LOADED:
 	mov ax,di
 	mov si,VESA_PhysBasePtr
 	mov ecx,[ds:si]
-	xchg bx,bx
+	;xchg bx,bx
 	add ax,4
 
 	;Protected Mode ×¼±¸
@@ -889,9 +889,9 @@ FUNC_RearrangeKernel:
 	add	eax, CONST_KERNEL_BasePhyAddr
 	push eax
 	push dword [esi + 08h]
-	BREAK_PT
+	;BREAK_PT
 	call FUNC_MemoryCopy
-	BREAK_PT
+	;BREAK_PT
 	add	esp, 12	
 .NoAction:
 	add	esi, 020h

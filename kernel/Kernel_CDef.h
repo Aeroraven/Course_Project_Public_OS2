@@ -117,8 +117,10 @@ typedef struct GATE_s{
 #define KRNL_PRIVL_R1 0x1
 #define KRNL_PRIVL_R2 0x2
 #define KRNL_PRIVL_R3 0x3
+
 #define KRNL_PRIVL_SYS KRNL_PRIVL_R0
 #define KRNL_PRIVL_USR KRNL_PRIVL_R3
+#define KRNL_PRIVL_TSK KRNL_PRIVL_R1
 
 #define KRNL_RPL0 0x0
 #define KRNL_RPL1 0x1
@@ -127,6 +129,7 @@ typedef struct GATE_s{
 
 #define KRNL_RPL_SYS KRNL_RPL0
 #define KRNL_RPL_USR KRNL_RPL3
+#define KRNL_RPL_TSK KRNL_RPL1
 //---------------------内联汇编-----------------------------
 #define GCCASM_INTEL_SYNTAX asm(".intel_syntax noprefix");
 #define GCCASM_ATT_SYNTAX asm(".att_syntax prefix");
@@ -171,6 +174,8 @@ typedef struct s_SELECTOR_S {
 #define KRNL_SELECTORS_SYSG(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_GDT,KRNL_RPL_SYS})
 #define KRNL_SELECTORS_SYSL(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_LDT,KRNL_RPL_SYS})
 #define KRNL_SELECTORS_USRG(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_GDT,KRNL_RPL_USR})
+#define KRNL_SELECTORS_TSKG(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_GDT,KRNL_RPL_TSK})
+#define KRNL_SELECTORS_TSKL(selector) ((SELECTOR_S){(DWORD)selector,KRNL_SELECTOR_TL_LDT,KRNL_RPL_TSK})
 
 
 //----------------------中断处理----------------------------
@@ -239,6 +244,7 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 
 #define KRNL_PROC_RINGPRIV_SYS 0
 #define KRNL_PROC_RINGPRIV_USR 3
+#define KRNL_PROC_RINGPRIV_TSK 1
 
 
 typedef UDWORD PROC_PID;
@@ -423,3 +429,12 @@ typedef VOID* SYSCALL;
 //----------------------键盘--------------------------------
 #define KB_BUFFER_CAPACITY 0x200
 typedef ARV_QUEUE(KB_BUFFER_CAPACITY, CHAR) KB_BUFFER;
+
+//----------------------VESA--------------------------------
+typedef struct VESA_PIXEL_S {
+	UWORD B;
+	UWORD G;
+	UWORD R;
+}VESA_PIXEL;
+
+#define KRNLM_VESA_DeclFrameBuffer(x) VESA_PIXEL x[VESA_RES_H * VESA_RES_W];

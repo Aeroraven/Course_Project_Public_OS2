@@ -244,10 +244,10 @@ VOID load_multi_task() {
 	printf("\n");
 	for (DWORD i = 0; i < KRNL_PROC_MAXCNT; i++) {
 		PROCESS* proc = &ProcessTable[i];
-		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
-		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
-		KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
-			KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), task_table[i].task_eip,
+		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_TSK));
+		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_TSK));
+		KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_TSKL(0), KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_TSKL(8),
+			KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_TSKL(8), task_table[i].task_eip,
 			task_table[i].stack_ptr + task_table[i].stack_size, 0x1201);
 		KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
 			LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
@@ -278,7 +278,16 @@ VOID kernel_main() {
 
 	//键盘ScanCode映射初始化
 	KC_KB_InitScanCodeMapping();
-
+	KRNL_KB_CtrlL=0;
+	KRNL_KB_CtrlR=0;
+	KRNL_KB_AltL=0;
+	KRNL_KB_AltR=0;
+	KRNL_KB_ShiftL=0;
+	KRNL_KB_ShiftR=0;
+	KRNL_KB_E0_Flag=0;
+	KRNL_KB_NumLock=0;
+	KRNL_KB_CapLock=0;
+	KRNL_KB_ScrollLock=0;
 	//任务表
 	load_task_table();
 
@@ -332,13 +341,17 @@ VOID Ticks(DWORD x) {
 }
 
 VOID keyboard_scancode_read() {
+	
 	UBYTE scancode;
 	UBYTE output[2] = { 0,0 };
 	BOOL isMake;
 	GCCASM_INTEL_SYNTAX;
-	//_cli;
+	_cli;
 	UBYTE kbread = KeyBoardRead();
-	//_sti;
+	UWORD* krow;
+	UDWORD kcol;
+	UDWORD key;
+	_sti;
 	if (kbread != -1) {
 
 		scancode = kbread;
@@ -346,16 +359,56 @@ VOID keyboard_scancode_read() {
 
 		}
 		else if (scancode == 0xe0) {
-
+			KRNL_KB_E0_Flag = TRUE;
 		}
 		else {
 
 			isMake = ((scancode & 0x80) == 0);
-
-			if (isMake) {
-				printf("%c", KRNL_KeyMap[scancode * 3]);
+			krow = &KRNL_KeyMap[(scancode & 0x7F) * 3];
+			kcol = 0;
+			if (KRNL_KB_ShiftL || KRNL_KB_ShiftR) {
+				kcol = 1;
+			}
+			if (KRNL_KB_E0_Flag) {
+				kcol = 2;
+				KRNL_KB_E0_Flag = FALSE;
+			}
+			key = krow[kcol];
+			switch (key)
+			{
+				case KRNL_KB_SHIFT_L:
+					KRNL_KB_ShiftL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_SHIFT_R:
+					KRNL_KB_ShiftR = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_CTRL_L:
+					KRNL_KB_CtrlL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_CTRL_R:
+					KRNL_KB_CtrlR = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_ALT_L:
+					KRNL_KB_AltL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_ALT_R:
+					KRNL_KB_AltR = isMake;
+					key = 0;
+					break;
+				default:
+					if (!isMake) {
+						key = 0;
+					}
+					break;
+			}
+			if (key) {
+				printf("%c", key);
 			}
 		}
-
 	}
 }
