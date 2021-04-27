@@ -12,6 +12,9 @@
 #include "Kernel_GlobalVar.h"
 #include "Kernel_VESACharMap.h"
 
+VOID KC_KB_KeyboardHandler(DWORD);
+
+
 //----------------------------
 //    中断处理
 //----------------------------
@@ -37,10 +40,10 @@ VOID KC_IRQ_Disable(UDWORD irq_id) {
 
 VOID KC_IRQ_Enable(UDWORD irq_id) {
 	if (irq_id < 8) {
-		AF_OutPort(KRNL_INT_M_CTLMASK, AF_InPort(KRNL_INT_M_CTLMASK) &~ (1 << irq_id));
+		AF_OutPort(KRNL_INT_M_CTLMASK, AF_InPort(KRNL_INT_M_CTLMASK) & ~(1 << irq_id));
 	}
 	else {
-		AF_OutPort(KRNL_INT_S_CTLMASK, AF_InPort(KRNL_INT_S_CTLMASK) &~ (1 << irq_id));
+		AF_OutPort(KRNL_INT_S_CTLMASK, AF_InPort(KRNL_INT_S_CTLMASK) & ~(1 << irq_id));
 	}
 }
 
@@ -61,7 +64,7 @@ VOID KC_LoadDescriptor(DESCRIPTOR* p_desc, UDWORD base, UDWORD limit, UWORD attr
 	p_desc->base_high = (base >> 24) & 0x0FF;
 }
 
-VOID KC_LoadProcessInfo(PROCESS* proc,SELECTOR_W ldt_selector, SELECTOR_S cs, SELECTOR_S ds, SELECTOR_S es, SELECTOR_S fs,
+VOID KC_LoadProcessInfo(PROCESS* proc, SELECTOR_W ldt_selector, SELECTOR_S cs, SELECTOR_S ds, SELECTOR_S es, SELECTOR_S fs,
 	SELECTOR_S gs, SELECTOR_S ss, HANDLER proc_entry, DWORD stack_address, DWORD eflag) {
 	//AF_VMBreakPoint();
 	proc->ldt_selector = ldt_selector;
@@ -82,7 +85,7 @@ VOID KC_DuplicateDescriptor(DESCRIPTOR* dest, DESCRIPTOR* src) {
 VOID KC_DuplicateGlobalDescriptor(DESCRIPTOR* dest, SELECTOR_W gdt_selector) {
 	KC_DuplicateDescriptor(dest, &GDT[gdt_selector >> 3]);
 }
-VOID KC_DuplicateGlobalDescriptorEx(DESCRIPTOR* dest, SELECTOR_W gdt_selector,UDWORD attr1) {
+VOID KC_DuplicateGlobalDescriptorEx(DESCRIPTOR* dest, SELECTOR_W gdt_selector, UDWORD attr1) {
 	KC_DuplicateGlobalDescriptor(dest, gdt_selector);
 	dest->attr_first = attr1;
 }
@@ -117,7 +120,7 @@ VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
 //----------------------------
 //    进程和作业
 //----------------------------
-VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname, UBYTE* stack_addr,DWORD priority,DWORD privilege) {
+VOID KC_LoadTaskTable(UWORD id, HANDLER handler, DWORD stacksize, CHAR* taskname, UBYTE* stack_addr, DWORD priority, DWORD privilege) {
 	for (CHAR* i = taskname, *j = task_table[id].name;;)
 	{
 		*j = *i;
@@ -164,14 +167,26 @@ VOID KC_VESA_PutPixel(DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
 	DWORD realx = row * 1, realy = col * 1;
 	DWORD pxPos = realx * VESA_RES_W + realy;
 	DWORD pxIdx = pxPos * 3;
+	KRNL_VESA_FrameBuffer[pxPos].R = r;
+	KRNL_VESA_FrameBuffer[pxPos].G = g;
+	KRNL_VESA_FrameBuffer[pxPos].B = b;
 	AF_VESA_PutPixel(pxIdx, b, g, r);
+}
+
+VOID KC_VESA_SwitchBuffer(VESA_FRAMEBUFFER fb) {
+	GCCASM_INTEL_SYNTAX;
+	asm("cli");
+	AF_VESA_ScreenMemPaste(0, fb, sizeof(KRNL_VESA_FrameBuffer));
+	AF_MemoryCopy(KRNL_VESA_FrameBuffer, fb, sizeof(KRNL_VESA_FrameBuffer));
+	KRNL_DISP_ActivatedBuffer = fb;
+	asm("sti");
 }
 
 VOID KC_VESA_PutChar(CHAR ch, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
 	DWORD basex = row * VESA_FONT_ROWS, basey = col * VESA_FONT_COLS;
 	for (int i = basex; i < basex + VESA_FONT_ROWS; i++) {
 		for (int j = basey; j < basey + VESA_FONT_COLS; j++) {
-			if (KRNL_VIDEO_CHARMAP[ch][(i-basex)* VESA_FONT_COLS +(j-basey)]==1) {
+			if (KRNL_VIDEO_CHARMAP[ch][(i - basex) * VESA_FONT_COLS + (j - basey)] == 1) {
 				KC_VESA_PutPixel(i, j, r, g, b);
 			}
 			else {
@@ -180,6 +195,152 @@ VOID KC_VESA_PutChar(CHAR ch, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
 		}
 	}
 }
+VOID KC_VESA_PutPixelBuf(VESA_PIXEL* buf, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
+	DWORD realx = row * 1, realy = col * 1;
+	DWORD pxPos = realx * VESA_RES_W + realy;
+	DWORD pxIdx = pxPos * 3;
+	buf[pxPos].R = r;
+	buf[pxPos].G = g;
+	buf[pxPos].B = b;
+	if (buf == KRNL_DISP_ActivatedBuffer) {
+		KC_VESA_PutPixel(row, col, r, g, b);
+	}
+}
+
+VOID KC_VESA_PutCharBuf(VESA_PIXEL* buf,CHAR ch, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
+	DWORD basex = row * VESA_FONT_ROWS, basey = col * VESA_FONT_COLS;
+	for (int i = basex; i < basex + VESA_FONT_ROWS; i++) {
+		for (int j = basey; j < basey + VESA_FONT_COLS; j++) {
+			if (KRNL_VIDEO_CHARMAP[ch][(i - basex) * VESA_FONT_COLS + (j - basey)] == 1) {
+				KC_VESA_PutPixelBuf(buf,i, j, r, g, b);
+			}
+			else {
+				KC_VESA_PutPixelBuf(buf,i, j, 0, 0, 0);
+			}
+		}
+	}
+}
+
+VOID KC_VESA_ScrollUp(DWORD lines) {
+	UBYTE* beginAddr = &KRNL_VESA_FrameBuffer[lines * VESA_RES_W];
+	UBYTE* bgAddr = KRNL_VESA_FrameBuffer;
+	GCCASM_INTEL_SYNTAX;
+	asm("cli");
+	AF_VESA_ScreenMemPasteDWord(0, beginAddr, sizeof(KRNL_VESA_FrameBuffer) - lines * VESA_RES_W * sizeof(VESA_PIXEL));
+	AF_VESA_ScreenMemClear(sizeof(KRNL_VESA_FrameBuffer) - lines * VESA_RES_W * sizeof(VESA_PIXEL), lines * VESA_RES_W * sizeof(VESA_PIXEL));
+	AF_MemoryCopy(bgAddr, beginAddr, sizeof(KRNL_VESA_FrameBuffer) - lines * VESA_RES_W * sizeof(VESA_PIXEL));
+	AF_VESA_ScreenMemClear(bgAddr + sizeof(KRNL_VESA_FrameBuffer) - lines * VESA_RES_W * sizeof(VESA_PIXEL), lines * VESA_RES_W * sizeof(VESA_PIXEL));
+	asm("sti");
+}
+
+VOID KC_VESA_FontScrollUp(DWORD char_lines) {
+	KC_VESA_ScrollUp(char_lines * VESA_FONT_ROWS);
+	KRNL_VESAFont_Row--;
+}
+
+VOID KC_VESA_ClearBuffer(VESA_PIXEL* pxbuffer, DWORD size) {
+	for (int i = 0; i < size; i++) {
+		pxbuffer[i].R = 0;
+		pxbuffer[i].G = 0;
+		pxbuffer[i].B = 0;
+	}
+}
+
+//----------------------------
+//    TTY
+//----------------------------
+VOID KC_TTY_Init(TTY* tp) {
+	tp->input_buffer_cursize = 0;
+	tp->input_buffer.front = tp->input_buffer.end = 0;
+	DWORD w = tp - KRNL_TTY_Table;
+	tp->bound_con = w + KRNL_CON_Table;
+	tp->bound_con->disp_buf = &(KRNL_CON_VFrameBuffer[w]);
+}
+
+VOID KC_CON_SelectConsole(DWORD idx) {
+	KRNL_CON_CurConsole = idx;
+	KC_VESA_SwitchBuffer(KRNL_CON_Table[idx].disp_buf);
+}
+
+VOID KC_TTY_InProc(TTY* tp, UDWORD key) {
+	if (!(key & KRNL_KB_FLAG_EXT)) {
+		if ((tp->input_buffer.end + 1) % KRNL_TTY_BUF_SIZE != (tp->input_buffer.front)) {
+			tp->input_buffer.buffer[tp->input_buffer.end] = key;
+			tp->input_buffer.end++;
+			tp->input_buffer.end %= KRNL_TTY_BUF_SIZE;
+		}
+	}
+	else {
+		DWORD raw_code = key & KRNL_KB_MASK_RAW;
+		switch (raw_code) {
+			case KRNL_KB_F1:
+			case KRNL_KB_F2:
+			case KRNL_KB_F3:
+				//KC_CON_SelectConsole(raw_code - KRNL_KB_F1);
+				break;
+			default:
+				break;
+		}
+	}
+	
+}
+
+VOID KC_TTY_Read(TTY* tp) {
+	
+	if (KC_CON_IsActiveConsole(tp->bound_con)) {
+		
+		KC_KB_ScancodeRead(tp);
+	}
+}
+
+VOID KC_CON_OutputChar(CONSOLE* p, CHAR ch) {
+	if (ch != '\n') {
+		KC_VESA_PutCharBuf(p->disp_buf, ch, p->ch_row, p->ch_col, 0xff, 0xff, 0xff);
+		p->ch_col++;
+	}
+	if (p->ch_col == VESA_FONT_COLMAX||ch=='\n') {
+		p->ch_row++;
+		p->ch_col = 0;
+	}
+}
+
+VOID KC_TTY_Write(TTY* tp) {
+	
+	if (tp->input_buffer.end != tp->input_buffer.front) {
+		CHAR ch = tp->input_buffer.buffer[tp->input_buffer.front++];
+		tp->input_buffer.front %= KRNL_TTY_BUF_SIZE;
+		
+		KC_CON_OutputChar(tp->bound_con, ch);
+		//AF_VMBreakPoint();
+	}
+	
+}
+
+VOID KC_TTY_CyclicExecution() {
+	TTY* tp;
+	for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
+		KC_TTY_Init(tp);
+	}
+	KRNL_CON_CurConsole = 0;
+	KC_CON_SelectConsole(0);
+	while (1) {
+		for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
+			KC_TTY_Read(tp);
+			KC_TTY_Write(tp);
+		}
+	}
+}
+
+DWORD KC_CON_IsActiveConsole(CONSOLE* con) {
+	
+	if (con == &KRNL_CON_Table[KRNL_CON_CurConsole]) {
+		
+		return TRUE;
+	}
+	//AF_VMBreakPoint();
+	return FALSE;
+}
+
 
 //----------------------------
 //    键盘I/O
@@ -187,6 +348,99 @@ VOID KC_VESA_PutChar(CHAR ch, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
 DWORD KC_KB_GetScanCode() {
 	return AF_InPort(0x60);
 }
+
+VOID KC_KB_KeyboardHandler(DWORD x) {
+	DWORD kp = KC_KB_GetScanCode();
+	if (kb_buffer.front != (kb_buffer.end + 1) % KB_BUFFER_CAPACITY) {
+		kb_buffer.buffer[kb_buffer.end] = (BYTE)(kp);
+		kb_buffer.end++;
+		kb_buffer.end %= KB_BUFFER_CAPACITY;
+	}
+}
+
+DWORD KC_KB_KeyBoardRead() {
+	if (kb_buffer.front != kb_buffer.end) {
+		DWORD rtn = kb_buffer.buffer[kb_buffer.front];
+		kb_buffer.front++;
+		kb_buffer.front %= KB_BUFFER_CAPACITY;
+		return rtn;
+	}
+	return -1;
+}
+
+VOID KC_KB_ScancodeRead(TTY* tp) {
+	UBYTE scancode;
+	UBYTE output[2] = { 0,0 };
+	BOOL isMake;
+	GCCASM_INTEL_SYNTAX;
+	asm("cli");
+	UBYTE kbread = KC_KB_KeyBoardRead();
+	UWORD* krow;
+	UDWORD kcol;
+	UDWORD key;
+	asm("sti");
+	if (kbread != -1) {
+
+		scancode = kbread;
+		if (scancode == 0xe1) {
+
+		}
+		else if (scancode == 0xe0) {
+			KRNL_KB_E0_Flag = TRUE;
+		}
+		else {
+
+			isMake = ((scancode & 0x80) == 0);
+			krow = &KRNL_KeyMap[(scancode & 0x7F) * 3];
+			kcol = 0;
+			if (KRNL_KB_ShiftL || KRNL_KB_ShiftR) {
+				kcol = 1;
+			}
+			if (KRNL_KB_E0_Flag) {
+				kcol = 2;
+				KRNL_KB_E0_Flag = FALSE;
+			}
+			key = krow[kcol];
+			switch (key)
+			{
+				case KRNL_KB_SHIFT_L:
+					KRNL_KB_ShiftL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_SHIFT_R:
+					KRNL_KB_ShiftR = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_CTRL_L:
+					KRNL_KB_CtrlL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_CTRL_R:
+					KRNL_KB_CtrlR = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_ALT_L:
+					KRNL_KB_AltL = isMake;
+					key = 0;
+					break;
+				case KRNL_KB_ALT_R:
+					KRNL_KB_AltR = isMake;
+					key = 0;
+					break;
+				default:
+					if (!isMake) {
+						key = 0;
+					}
+					break;
+			}
+			if (key) {
+				
+				KC_TTY_InProc(tp, key);
+			}
+		}
+	}
+}
+
 
 //扫描码映射
 //更改函数内容请同时更改Kernel_CDef.h中的宏定义

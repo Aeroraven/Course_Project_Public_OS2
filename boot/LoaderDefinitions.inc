@@ -141,6 +141,7 @@ CONST_VIDEO_CGA_COLS					equ 80
 
 ;需要启用LFB 
 CONST_VIDEOMEMORY_VESA_BASE				equ 0xe0000000
+CONST_VIDEOMEMORY_VESA_BASE_QEMU		equ 0xfc000000
 CONST_VIDEOMEMORY_VESA_END				equ 0xffffffff
 CONST_VIDEOMEMORY_VESA_LIMIT			equ 0xffffffff
 
@@ -165,7 +166,7 @@ CONST_VESA_DISPLAY_MODE					equ 0x118
 	mov al,%2
 	out dx, al
 %endmacro
-
+ 
 ;----------------------------------			
 ; 内存分页
 ;----------------------------------
@@ -185,7 +186,7 @@ CONST_KERNEL_BaseAddr				equ 0x7000				;Kernel 加载段地址
 CONST_KERNEL_OffsetAddr				equ 0x0					;Kernel 加载地址偏移
 CONST_KERNEL_BasePhyAddr			equ CONST_KERNEL_BaseAddr * 0x10 ;Kernel 加载段地址物理地址	
 
-CONST_KERNEL_Entry					equ 0x30400				;Kernel 入口地址
+CONST_KERNEL_Entry					equ 0x300400				;Kernel 入口地址
 
 ;----------------------------------			
 ; 杂项

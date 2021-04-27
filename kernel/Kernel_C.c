@@ -14,14 +14,11 @@
 VOID test();
 VOID load_first_task();
 VOID Ticks(DWORD);
-VOID KeyboardHandler(DWORD);
 
 VOID spurious_interrupt_request(UDWORD);
 VOID SystemCall();
-DWORD KeyBoardRead();
-VOID keyboard_scancode_read();
 
-STATIC KB_BUFFER kb_buffer;
+
 
 
 //初始化内核
@@ -30,6 +27,7 @@ VOID kernel_start() {
 	KRNL_VESAFont_Row = 0;
 	KRNL_VESAFont_Col = 0;
 	KC_VIDEO_SetVESAFont();
+	KRNL_DISP_ActivatedBuffer = &KRNL_CON_VFrameBuffer[0];
 
 	//复制GDT
 	AF_SaveGlobalDescriptorTable((GDTPTR)GDT_ptr);
@@ -227,16 +225,18 @@ VOID hello_world_c() {
 		//printf("C");
 	}
 }
-VOID tty() {
-	while (1) {
-		keyboard_scancode_read();
-	}
+
+VOID task_tty() {
+	
+	while (1);
 }
+
 VOID load_task_table() {
 	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA", TestStack, 10, 3);
 	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 15, 3);
 	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 20, 3);
-	KC_LoadTaskTable(3, tty, KRNL_PROC_SINGLESTACK, "TaskC", TestStack4, 20, 3);
+	//KC_LoadTaskTable(3, task_tty, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, 3);
+	KC_LoadTaskTable(3, KC_TTY_CyclicExecution, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, 3);
 }
 
 VOID load_multi_task() {
@@ -262,20 +262,28 @@ VOID set_syscall() {
 VOID set_irq() {
 	KC_IRQ_Establish(KRNL_INT_IRQI_CLOCK, Ticks);
 	KC_IRQ_Enable(KRNL_INT_IRQI_CLOCK);
-	KC_IRQ_Establish(KRNL_INT_IRQI_KEYBOARD, KeyboardHandler);
+	KC_IRQ_Establish(KRNL_INT_IRQI_KEYBOARD, KC_KB_KeyboardHandler);
 	KC_IRQ_Enable(KRNL_INT_IRQI_KEYBOARD);
 }
 
 VOID test() {
+	
 	ProcessReady = &ProcessTable[0];
 	Restart();
 }
 
-//内核开始
+//KRNL开始
 VOID kernel_main() {
-
+	KRNL_CON_CurConsole = 0;
 	K_Ticks = 0;
-
+	//清空缓冲区
+	KC_VESA_ClearBuffer(KRNL_VESA_FrameBuffer, sizeof(KRNL_VESA_FrameBuffer)/sizeof(VESA_PIXEL));
+	for (DWORD i = 0; i < KRNL_CON_COUNT; i++) {
+		//KC_VESA_ClearBuffer(KRNL_CON_VFrameBuffer[i], sizeof(KRNL_VESA_FrameBuffer) / sizeof(VESA_PIXEL));
+	}
+	printf("Buf:%x\n", KRNL_CON_VFrameBuffer);
+	printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
+	AF_VMBreakPoint();
 	//键盘ScanCode映射初始化
 	KC_KB_InitScanCodeMapping();
 	KRNL_KB_CtrlL=0;
@@ -290,6 +298,9 @@ VOID kernel_main() {
 	KRNL_KB_ScrollLock=0;
 	//任务表
 	load_task_table();
+
+	//TTY
+	
 
 	//中断重入
 	K_IntReenter = 0;
@@ -309,24 +320,8 @@ VOID kernel_main() {
 	while (1);
 }
 
-VOID KeyboardHandler(DWORD x) {
-	DWORD kp = KC_KB_GetScanCode();
-	if (kb_buffer.front != (kb_buffer.end + 1) % KB_BUFFER_CAPACITY) {
-		kb_buffer.buffer[kb_buffer.end] = (BYTE)(kp);
-		kb_buffer.end++;
-		kb_buffer.end %= KB_BUFFER_CAPACITY;
-	}
-	//keyboard_scancode_read();
-}
-DWORD KeyBoardRead() {
-	if (kb_buffer.front != kb_buffer.end) {
-		DWORD rtn = kb_buffer.buffer[kb_buffer.front];
-		kb_buffer.front++;
-		kb_buffer.front %= KB_BUFFER_CAPACITY;
-		return rtn;
-	}
-	return -1;
-}
+
+
 
 VOID Ticks(DWORD x) {
 	K_Ticks++;
@@ -340,75 +335,3 @@ VOID Ticks(DWORD x) {
 
 }
 
-VOID keyboard_scancode_read() {
-	
-	UBYTE scancode;
-	UBYTE output[2] = { 0,0 };
-	BOOL isMake;
-	GCCASM_INTEL_SYNTAX;
-	_cli;
-	UBYTE kbread = KeyBoardRead();
-	UWORD* krow;
-	UDWORD kcol;
-	UDWORD key;
-	_sti;
-	if (kbread != -1) {
-
-		scancode = kbread;
-		if (scancode == 0xe1) {
-
-		}
-		else if (scancode == 0xe0) {
-			KRNL_KB_E0_Flag = TRUE;
-		}
-		else {
-
-			isMake = ((scancode & 0x80) == 0);
-			krow = &KRNL_KeyMap[(scancode & 0x7F) * 3];
-			kcol = 0;
-			if (KRNL_KB_ShiftL || KRNL_KB_ShiftR) {
-				kcol = 1;
-			}
-			if (KRNL_KB_E0_Flag) {
-				kcol = 2;
-				KRNL_KB_E0_Flag = FALSE;
-			}
-			key = krow[kcol];
-			switch (key)
-			{
-				case KRNL_KB_SHIFT_L:
-					KRNL_KB_ShiftL = isMake;
-					key = 0;
-					break;
-				case KRNL_KB_SHIFT_R:
-					KRNL_KB_ShiftR = isMake;
-					key = 0;
-					break;
-				case KRNL_KB_CTRL_L:
-					KRNL_KB_CtrlL = isMake;
-					key = 0;
-					break;
-				case KRNL_KB_CTRL_R:
-					KRNL_KB_CtrlR = isMake;
-					key = 0;
-					break;
-				case KRNL_KB_ALT_L:
-					KRNL_KB_AltL = isMake;
-					key = 0;
-					break;
-				case KRNL_KB_ALT_R:
-					KRNL_KB_AltR = isMake;
-					key = 0;
-					break;
-				default:
-					if (!isMake) {
-						key = 0;
-					}
-					break;
-			}
-			if (key) {
-				printf("%c", key);
-			}
-		}
-	}
-}

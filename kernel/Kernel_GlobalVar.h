@@ -34,16 +34,26 @@ EXTERN UBYTE KRNL_KB_NumLock;
 EXTERN UBYTE KRNL_KB_CapLock;
 EXTERN UBYTE KRNL_KB_ScrollLock;
 
+EXTERN UBYTE KRNL_CON_CurConsole;
+EXTERN KB_BUFFER kb_buffer;
+
+extern KRNLM_VESA_DeclFrameBuffer(KRNL_VESA_FrameBuffer);
+extern KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer[KRNL_CON_COUNT]);
+
+EXTERN DISPLAY_BUFFER KRNL_DISP_ActivatedBuffer;
+
+extern TTY KRNL_TTY_Table[KRNL_CON_COUNT];
+extern CONSOLE KRNL_CON_Table[KRNL_CON_COUNT];
 
 extern UWORD KRNL_KeyMap[0x180];
 extern UBYTE KRNL_VIDEO_CHARMAP[128][VESA_FONT_COLS * VESA_FONT_ROWS];
 
 extern PROCESS ProcessTable[KRNL_PROC_MAXCNT];
 
-extern CHAR TestStack[8000];
-extern CHAR TestStack2[8000];
-extern CHAR TestStack3[8000];
-extern CHAR TestStack4[8000];
+extern CHAR TestStack[KRNL_PROC_SINGLESTACK];
+extern CHAR TestStack2[KRNL_PROC_SINGLESTACK];
+extern CHAR TestStack3[KRNL_PROC_SINGLESTACK];
+extern CHAR TestStack4[KRNL_PROC_SINGLESTACK];
 
 extern TSS tss;
 extern PROCESS* ProcessReady;

@@ -114,6 +114,11 @@ DWORD SYSCALL_GetTick();
 
 VOID AF_VESA_PutPixel(DWORD position, DWORD blue, DWORD green, DWORD red);
 
+VOID AF_VESA_ScreenMemPaste(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);
+VOID AF_VESA_ScreenMemClear(ANYPTR destPtr, UDWORD size);
+VOID AF_VESA_ScreenMemPasteDWord(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);
+
+
 //----------------------------------------
 //	异常和中断(函数定义在 Kernel_AsmFunc.asm中)
 //----------------------------------------

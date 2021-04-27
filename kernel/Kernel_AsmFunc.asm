@@ -83,6 +83,11 @@ global AF_LTRAxCall
 global AF_SystemCallInt
 
 global AF_VESA_PutPixel
+global AF_VESA_ScreenMemPaste
+global AF_VESA_ScreenMemClear
+global AF_VESA_ScreenMemPasteDWord
+
+global AF_FastMemcpy
 
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
@@ -98,7 +103,7 @@ AF_MemoryCopy:
 	push esi
 	push edi
 	push ecx
-	mov edi,[ebp+8] ;DEST, 前面还有EIP和EBP
+	mov edi,[ebp+8] ;DEST, 
 	mov esi,[ebp+12];SRC
 	mov ecx,[ebp+16]
 	
@@ -110,11 +115,120 @@ AF_MemoryCopy:
 	loop .1
 	mov eax,[ebp+8]
 	pop ecx
-	pop esi
 	pop edi
+	pop esi
 	mov esp,ebp
 	pop ebp
 	ret 
+
+AF_VESA_ScreenMemPaste:
+	push ebp
+	mov ebp,esp
+	push esi
+	push edi
+	push ecx
+	mov edi,[ebp+8] ;DEST, 
+	mov esi,[ebp+12];SRC
+	mov ecx,[ebp+16]
+	
+.1:
+	mov al, [ds:esi]
+	inc esi
+	mov byte [gs:edi],al
+	inc edi
+	loop .1
+	mov eax,[ebp+8]
+	pop ecx
+	pop edi
+	pop esi
+	mov esp,ebp
+	pop ebp
+	ret 
+
+AF_VESA_ScreenMemPasteDWord:
+	push ebp
+	mov ebp,esp
+	push esi
+	push edi
+	push ecx
+	mov edi,[ebp+8] ;DEST, 
+	mov esi,[ebp+12];SRC
+	mov ecx,[ebp+16]
+.1:
+	mov eax, [ds:esi]
+	add esi,4
+	mov dword [gs:edi],eax
+	add edi,4
+	sub ecx,4
+	jmp .1
+	mov eax,[ebp+8]
+	pop ecx
+	pop edi
+	pop esi
+	mov esp,ebp
+	pop ebp
+	ret 
+	
+AF_VESA_ScreenMemClear:
+	push ebp
+	mov ebp,esp
+	push edi
+	push ecx
+	mov edi,[ebp+8] ;DEST, 前面还有EIP和EBP
+	mov ecx,[ebp+12]
+	xor al,al
+.1:
+	mov byte [gs:edi],al
+	inc edi
+	loop .1
+	mov eax,[ebp+8]
+	pop ecx
+	pop edi
+	mov esp,ebp
+	pop ebp
+	ret
+
+AF_FastMemcpy:
+	push ebp
+	mov ebp,esp
+	push esi
+	push edi
+	push ecx
+	mov esi, [ebp+12];    //src pointer
+	mov edi, [ebp+8];   //dest pointer
+	mov ebx, [ebp+16];   //ebx is our counter 
+	shr ebx, 7;      //divide by 128 (8 * 128bit registers)
+loop_copy:
+	prefetchnta [ESI+128]; //SSE2 prefetch
+	prefetchnta [ESI+160];
+	prefetchnta [ESI+192];
+	prefetchnta [ESI+224];
+	movdqa xmm0, [ESI]; //move data from src to registers
+	movdqa xmm1, [ESI+16];
+	movdqa xmm2, [ESI+32];
+	movdqa xmm3, [ESI+48];
+	movdqa xmm4, [ESI+64];
+	movdqa xmm5, [ESI+80];
+	movdqa xmm6, [ESI+96];
+	movdqa xmm7, [ESI+112];
+	movntdq [EDI], xmm0; //move data from registers to dest
+	movntdq [EDI+16], xmm1;
+	movntdq [EDI+32], xmm2;
+	movntdq [EDI+48], xmm3;
+	movntdq [EDI+64], xmm4;
+	movntdq [EDI+80], xmm5;
+	movntdq [EDI+96], xmm6;
+	movntdq [EDI+112], xmm7;
+	add esi, 128;
+	add edi, 128;
+	dec ebx;
+	jnz loop_copy; //loop please
+loop_copy_end:
+	pop ecx
+	pop edi
+	pop esi
+	pop ebp
+	ret
 
 ;函数 AF_LoadGlobalDescriptorTable [保护模式] - 加载GDTR
 ;参数：	PUSH (dd)GDTR指针

@@ -239,7 +239,7 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 #define KRNL_PROC_MAXCNT 4
 #define KRNL_PROC_MAXTASKCNT KRNL_PROC_MAXCNT
 
-#define KRNL_PROC_SINGLESTACK 8000
+#define KRNL_PROC_SINGLESTACK 5000
 #define KRNL_PROC_TOTALSTACK (KRNL_PROC_MAXCNT*KRNL_PROC_SINGLESTACK)
 
 #define KRNL_PROC_RINGPRIV_SYS 0
@@ -425,6 +425,7 @@ typedef VOID* SYSCALL;
 #define KRNL_KB_PAD_MID		KRNL_KB_PAD_5			
 #define KRNL_KB_PAD_DEL		KRNL_KB_PAD_DOT			
 
+#define KRNL_KB_MASK_RAW	0x01ff
 
 //----------------------º¸≈Ã--------------------------------
 #define KB_BUFFER_CAPACITY 0x200
@@ -432,9 +433,30 @@ typedef ARV_QUEUE(KB_BUFFER_CAPACITY, CHAR) KB_BUFFER;
 
 //----------------------VESA--------------------------------
 typedef struct VESA_PIXEL_S {
-	UWORD B;
-	UWORD G;
-	UWORD R;
+	UBYTE B;
+	UBYTE G;
+	UBYTE R;
 }VESA_PIXEL;
 
 #define KRNLM_VESA_DeclFrameBuffer(x) VESA_PIXEL x[VESA_RES_H * VESA_RES_W];
+typedef VESA_PIXEL* VESA_FRAMEBUFFER;
+
+//----------------------œ‘ æ--------------------------------
+typedef VESA_FRAMEBUFFER DISPLAY_BUFFER;
+
+//----------------------øÿ÷∆Ã®------------------------------
+#define KRNL_TTY_BUF_SIZE 256
+#define KRNL_CON_COUNT 2
+
+typedef struct CONSOLE_S {
+	DWORD ch_row;
+	DWORD ch_col;
+	DISPLAY_BUFFER disp_buf;
+}CONSOLE;
+
+typedef struct TTY_S {
+	ARV_QUEUE(KRNL_TTY_BUF_SIZE, UDWORD) input_buffer;
+	UDWORD input_buffer_cursize;
+
+	CONSOLE* bound_con;
+}TTY;
