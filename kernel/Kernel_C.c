@@ -27,8 +27,10 @@ VOID kernel_start() {
 	KRNL_VESAFont_Row = 0;
 	KRNL_VESAFont_Col = 0;
 	KC_VIDEO_SetVESAFont();
-	KRNL_DISP_ActivatedBuffer = &KRNL_CON_VFrameBuffer[0];
+	KRNL_DISP_ActivatedBuffer = &KRNL_CON_VFrameBuffer_0;
 
+
+	printf("Buf:%x\n", 1234);
 	//¸´ÖÆGDT
 	AF_SaveGlobalDescriptorTable((GDTPTR)GDT_ptr);
 	AF_MemoryCopy(&GDT, (ANYPTR)(*((UDWORD*)(&GDT_ptr[2]))), *((UWORD*)(&GDT_ptr[0]) + 1));
@@ -222,7 +224,7 @@ VOID hello_world_c() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		//printf("C");
+		printf("C");
 	}
 }
 
@@ -278,10 +280,9 @@ VOID kernel_main() {
 	K_Ticks = 0;
 	//Çå¿Õ»º³åÇø
 	KC_VESA_ClearBuffer(KRNL_VESA_FrameBuffer, sizeof(KRNL_VESA_FrameBuffer)/sizeof(VESA_PIXEL));
-	for (DWORD i = 0; i < KRNL_CON_COUNT; i++) {
-		//KC_VESA_ClearBuffer(KRNL_CON_VFrameBuffer[i], sizeof(KRNL_VESA_FrameBuffer) / sizeof(VESA_PIXEL));
-	}
-	printf("Buf:%x\n", KRNL_CON_VFrameBuffer);
+	
+	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_0);
+	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_1);
 	printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
 	AF_VMBreakPoint();
 	//¼üÅÌScanCodeÓ³Éä³õÊ¼»¯
@@ -328,7 +329,7 @@ VOID Ticks(DWORD x) {
 
 	if (K_IntReenter != 0)
 	{
-		printf("+");
+		//printf("+");
 		return;
 	}
 	KC_ProcessSchedule();

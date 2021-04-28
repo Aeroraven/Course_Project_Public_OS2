@@ -38,7 +38,10 @@ EXTERN UBYTE KRNL_CON_CurConsole;
 EXTERN KB_BUFFER kb_buffer;
 
 extern KRNLM_VESA_DeclFrameBuffer(KRNL_VESA_FrameBuffer);
-extern KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer[KRNL_CON_COUNT]);
+
+extern KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer_0);
+extern KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer_1);
+
 
 EXTERN DISPLAY_BUFFER KRNL_DISP_ActivatedBuffer;
 

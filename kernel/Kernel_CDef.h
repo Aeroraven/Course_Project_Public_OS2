@@ -439,6 +439,7 @@ typedef struct VESA_PIXEL_S {
 }VESA_PIXEL;
 
 #define KRNLM_VESA_DeclFrameBuffer(x) VESA_PIXEL x[VESA_RES_H * VESA_RES_W];
+#define KRNLM_VESA_DeclFrameBufferArr(x, s) VESA_PIXEL x[VESA_RES_H * VESA_RES_W*s];
 typedef VESA_PIXEL* VESA_FRAMEBUFFER;
 
 //----------------------œ‘ æ--------------------------------

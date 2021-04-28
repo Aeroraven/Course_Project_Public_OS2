@@ -256,6 +256,8 @@ LABEL_FILE_LOADED:
 	;«Â∆¡
 	INT10_ScrollUp 0, CONST_BINT_WHITE_FG|CONST_BINT_BLACK_BG, 0x0, 0xffff
 
+
+	BREAK_PT
 	;VESA VGAœ‘¥Ê…Ë÷√
 	mov ax,0x4f02
 	mov bx,CONST_VESA_DISPLAY_MODE
@@ -290,6 +292,7 @@ LABEL_FILE_LOADED:
 	mov	eax, cr0
 	or	eax, 1
 	mov	cr0, eax
+	
 	
 	jmp	dword SELECTOR_GENERAL:(CONST_LOADER_BasePhyAddr+LABEL_PROGRAM_PROTECTMODE_START)
 

@@ -254,7 +254,11 @@ VOID KC_TTY_Init(TTY* tp) {
 	tp->input_buffer.front = tp->input_buffer.end = 0;
 	DWORD w = tp - KRNL_TTY_Table;
 	tp->bound_con = w + KRNL_CON_Table;
-	tp->bound_con->disp_buf = &(KRNL_CON_VFrameBuffer[w]);
+	//tp->bound_con->disp_buf = (KRNL_CON_VFrameBuffer + sizeof(KRNL_VESA_FrameBuffer) * w);
+}
+VOID KC_TTY_InitCon() {
+	KRNL_TTY_Table[0].bound_con->disp_buf = KRNL_CON_VFrameBuffer_0;
+	KRNL_TTY_Table[1].bound_con->disp_buf = KRNL_CON_VFrameBuffer_1;
 }
 
 VOID KC_CON_SelectConsole(DWORD idx) {
@@ -275,8 +279,10 @@ VOID KC_TTY_InProc(TTY* tp, UDWORD key) {
 		switch (raw_code) {
 			case KRNL_KB_F1:
 			case KRNL_KB_F2:
+				KC_CON_SelectConsole(raw_code - KRNL_KB_F1);
+				break;
 			case KRNL_KB_F3:
-				//KC_CON_SelectConsole(raw_code - KRNL_KB_F1);
+				
 				break;
 			default:
 				break;
@@ -321,6 +327,7 @@ VOID KC_TTY_CyclicExecution() {
 	for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
 		KC_TTY_Init(tp);
 	}
+	KC_TTY_InitCon();
 	KRNL_CON_CurConsole = 0;
 	KC_CON_SelectConsole(0);
 	while (1) {
