@@ -6,7 +6,7 @@ load:
 	gcc -m32 -c -o kernel_c.o kernel/Kernel_C.c -fno-stack-protector -O0 -fno-builtin -I kernel/ -masm=intel
 	gcc -m32 -c -o kernel_globalvar.o kernel/kernel_GlobalVar.c -fno-stack-protector -O0 -fno-builtin -I kernel/
 
-	ld -m elf_i386 -s -Ttext 0x30400 -o kernel.bin kernel.o kernel_asmfunc.o kernel_c.o kernel_globalvar.o
+	ld -m elf_i386 -s -Ttext 0x1000400  -o kernel.bin kernel.o kernel_asmfunc.o kernel_c.o kernel_globalvar.o
 
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
 	sudo mount -o loop a.img vdisk/
