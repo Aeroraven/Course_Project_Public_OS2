@@ -13,7 +13,7 @@
 #include "Kernel_VESACharMap.h"
 
 VOID KC_KB_KeyboardHandler(DWORD);
-
+VOID KC_CON_OutputChar(CONSOLE*, CHAR);
 
 //----------------------------
 //    中断处理
@@ -266,6 +266,14 @@ VOID KC_CON_SelectConsole(DWORD idx) {
 	KC_VESA_SwitchBuffer(KRNL_CON_Table[idx].disp_buf);
 }
 
+VOID KC_TTY_PutKey(TTY* tp, UDWORD key) {
+	if ((tp->input_buffer.end + 1) % KRNL_TTY_BUF_SIZE != (tp->input_buffer.front)) {
+		tp->input_buffer.buffer[tp->input_buffer.end] = key;
+		tp->input_buffer.end++;
+		tp->input_buffer.end %= KRNL_TTY_BUF_SIZE;
+	}
+}
+
 VOID KC_TTY_InProc(TTY* tp, UDWORD key) {
 	if (!(key & KRNL_KB_FLAG_EXT)) {
 		if ((tp->input_buffer.end + 1) % KRNL_TTY_BUF_SIZE != (tp->input_buffer.front)) {
@@ -284,6 +292,13 @@ VOID KC_TTY_InProc(TTY* tp, UDWORD key) {
 			case KRNL_KB_F3:
 				
 				break;
+
+			case KRNL_KB_ENTER:
+				KC_TTY_PutKey(tp, '\n');
+				break;
+			case KRNL_KB_BACKSPACE:
+				KC_TTY_PutKey(tp, '\b');
+				break;
 			default:
 				break;
 		}
@@ -299,14 +314,35 @@ VOID KC_TTY_Read(TTY* tp) {
 	}
 }
 
+
 VOID KC_CON_OutputChar(CONSOLE* p, CHAR ch) {
 	if (ch != '\n') {
-		KC_VESA_PutCharBuf(p->disp_buf, ch, p->ch_row, p->ch_col, 0xff, 0xff, 0xff);
-		p->ch_col++;
+		switch (ch) {
+			case '\b':
+				if (p->ch_col > 0) {
+					p->ch_col--;
+				}
+				KC_VESA_PutCharBuf(p->disp_buf, ' ', p->ch_row, p->ch_col, 0xff, 0xff, 0xff);
+
+				break;
+			default:
+				KC_VESA_PutCharBuf(p->disp_buf, ch, p->ch_row, p->ch_col, 0xff, 0xff, 0xff);
+				p->ch_col++;
+		}
+		
 	}
 	if (p->ch_col == VESA_FONT_COLMAX||ch=='\n') {
 		p->ch_row++;
 		p->ch_col = 0;
+	}
+}
+
+
+VOID KC_CON_OutputStr(CONSOLE* p, CHAR* ch) {
+	CHAR* st = ch;
+	while (*st != '\0') {
+		KC_CON_OutputChar(p, *st);
+		st++;
 	}
 }
 
@@ -354,6 +390,33 @@ DWORD KC_CON_IsActiveConsole(CONSOLE* con) {
 //----------------------------
 DWORD KC_KB_GetScanCode() {
 	return AF_InPort(0x60);
+}
+
+//等待8042缓冲区空
+VOID KC_KB_Wait() {
+	UBYTE kbst;
+	do {
+		kbst = AF_InPort(0x64);
+
+	} while (kbst & 0x02);
+}
+
+VOID KC_KB_ReturnAck() {
+	UBYTE kbst;
+	do {
+		kbst = AF_InPort(0x60);
+
+	} while (kbst!=0xFA);
+}
+
+VOID KC_KB_SetLED() {
+	UBYTE led = (KRNL_KB_NumLock << 1) | (KRNL_KB_CapLock << 2) | KRNL_KB_ScrollLock;
+	KC_KB_Wait();
+	AF_OutPort(0x60, 0xED);
+	KC_KB_ReturnAck();
+	KC_KB_Wait();
+	AF_OutPort(0x60, led);
+	KC_KB_ReturnAck();
 }
 
 VOID KC_KB_KeyboardHandler(DWORD x) {
@@ -407,32 +470,61 @@ VOID KC_KB_ScancodeRead(TTY* tp) {
 				kcol = 2;
 				KRNL_KB_E0_Flag = FALSE;
 			}
+			
+
+			int shift_cap = KRNL_KB_ShiftL | KRNL_KB_ShiftR;
+			if (KRNL_KB_CapLock) {
+				if (krow[0] >= 'a' && krow[0] <= 'z') {
+					//AF_VMBreakPoint();
+					kcol = !kcol;
+				}
+			}
 			key = krow[kcol];
+
 			switch (key)
 			{
 				case KRNL_KB_SHIFT_L:
 					KRNL_KB_ShiftL = isMake;
-					key = 0;
+					//key = 0;
 					break;
 				case KRNL_KB_SHIFT_R:
 					KRNL_KB_ShiftR = isMake;
-					key = 0;
+					//key = 0;
 					break;
 				case KRNL_KB_CTRL_L:
 					KRNL_KB_CtrlL = isMake;
-					key = 0;
+					//key = 0;
 					break;
 				case KRNL_KB_CTRL_R:
 					KRNL_KB_CtrlR = isMake;
-					key = 0;
+					//key = 0;
 					break;
 				case KRNL_KB_ALT_L:
 					KRNL_KB_AltL = isMake;
-					key = 0;
+					//key = 0;
 					break;
 				case KRNL_KB_ALT_R:
 					KRNL_KB_AltR = isMake;
-					key = 0;
+					//key = 0;
+					break;
+				case KRNL_KB_CAPS_LOCK:
+					if (isMake) {
+						//AF_VMBreakPoint();
+						KRNL_KB_CapLock = !KRNL_KB_CapLock;
+						KC_KB_SetLED();
+					}
+					break;
+				case KRNL_KB_NUM_LOCK:
+					if (isMake) {
+						KRNL_KB_NumLock = !KRNL_KB_NumLock;
+						KC_KB_SetLED();
+					}
+					break;
+				case KRNL_KB_SCROLL_LOCK:
+					if (isMake) {
+						KRNL_KB_ScrollLock = !KRNL_KB_ScrollLock;
+						KC_KB_SetLED();
+					}
 					break;
 				default:
 					if (!isMake) {
@@ -440,8 +532,80 @@ VOID KC_KB_ScancodeRead(TTY* tp) {
 					}
 					break;
 			}
-			if (key) {
-				
+			if (isMake) {
+				int spad = 0;
+				if ((key >= KRNL_KB_PAD_SLASH) && key <= KRNL_KB_PAD_9) {
+					spad = 1;
+					switch (key) {
+						case KRNL_KB_PAD_SLASH:
+							key = '/';
+							break;
+						case KRNL_KB_PAD_STAR:
+							key = '*';
+							break;
+						case KRNL_KB_PAD_MINUS:
+							key = '-';
+							break;
+						case KRNL_KB_PAD_PLUS:
+							key = '+';
+							break;
+						case KRNL_KB_PAD_ENTER:
+							key = KRNL_KB_ENTER;
+							break;
+						default:
+							if (KRNL_KB_NumLock && key >= KRNL_KB_PAD_0 && key <= KRNL_KB_PAD_9) {
+								key = key - KRNL_KB_PAD_0 + '0';
+							}
+							else if (KRNL_KB_NumLock && key == KRNL_KB_PAD_DOT) {
+								key = '.';
+
+							}
+							else {
+								switch (key) {
+									case KRNL_KB_PAD_HOME:
+										key = KRNL_KB_HOME;
+										break;
+									case KRNL_KB_PAD_END:
+										key = KRNL_KB_END;
+										break;
+									case KRNL_KB_PAD_PAGEUP:
+										key = KRNL_KB_PAGEUP;
+										break;
+									case KRNL_KB_PAD_PAGEDOWN:
+										key = KRNL_KB_PAD_PAGEDOWN;
+										break;
+									case KRNL_KB_PAD_INS:
+										key = KRNL_KB_INSERT;
+										break;
+									case KRNL_KB_PAD_UP:
+										key = KRNL_KB_UP;
+										break;
+									case KRNL_KB_PAD_DOWN:
+										key = KRNL_KB_DOWN;
+										break;
+									case KRNL_KB_PAD_LEFT:
+										key = KRNL_KB_LEFT;
+										break;
+									case KRNL_KB_PAD_RIGHT:
+										key = KRNL_KB_RIGHT;
+										break;
+									case KRNL_KB_PAD_DOT:
+										key = KRNL_KB_DELETE;
+										break;
+									default :
+										break;
+								}
+							}
+					}
+				}
+				key |= KRNL_KB_ShiftL ? KRNL_KB_FLAG_SHIFT_L : 0;
+				key |= KRNL_KB_ShiftR ? KRNL_KB_FLAG_SHIFT_R : 0;
+				key |= KRNL_KB_CtrlL ? KRNL_KB_FLAG_CTRL_L : 0;
+				key |= KRNL_KB_CtrlR ? KRNL_KB_FLAG_CTRL_R : 0;
+				key |= KRNL_KB_AltL ? KRNL_KB_FLAG_ALT_L : 0;
+				key |= KRNL_KB_AltR ? KRNL_KB_FLAG_ALT_R : 0;
+				key |= spad ? KRNL_KB_FLAG_PAD : 0;
+
 				KC_TTY_InProc(tp, key);
 			}
 		}

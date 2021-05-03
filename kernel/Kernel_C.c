@@ -224,7 +224,7 @@ VOID hello_world_c() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		printf("C");
+		//printf("C");
 	}
 }
 
@@ -234,11 +234,11 @@ VOID task_tty() {
 }
 
 VOID load_task_table() {
-	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA", TestStack, 10, 3);
-	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 15, 3);
-	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 20, 3);
+	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA", TestStack, 2, KRNL_PROC_RINGPRIV_USR);
+	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 2, KRNL_PROC_RINGPRIV_USR);
+	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 2, KRNL_PROC_RINGPRIV_USR);
 	//KC_LoadTaskTable(3, task_tty, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, 3);
-	KC_LoadTaskTable(3, KC_TTY_CyclicExecution, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, 3);
+	KC_LoadTaskTable(3, KC_TTY_CyclicExecution, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, KRNL_PROC_RINGPRIV_TSK);
 }
 
 VOID load_multi_task() {
@@ -246,13 +246,25 @@ VOID load_multi_task() {
 	printf("\n");
 	for (DWORD i = 0; i < KRNL_PROC_MAXCNT; i++) {
 		PROCESS* proc = &ProcessTable[i];
-		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_TSK));
-		KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_TSK));
-		KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_TSKL(0), KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_TSKL(8),
-			KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_TSKL(8), task_table[i].task_eip,
-			task_table[i].stack_ptr + task_table[i].stack_size, 0x1201);
-		KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
-			LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+		if (task_table[i].privilege == KRNL_PROC_RINGPRIV_TSK) {
+			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_TSK));
+			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_TSK));
+			KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_TSKL(0), KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_TSKL(8),
+				KRNL_SELECTORS_TSKL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_TSKL(8), task_table[i].task_eip,
+				task_table[i].stack_ptr + task_table[i].stack_size, 0x1202);
+			KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
+				LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+		}
+		else {
+			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
+			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_USR));
+			KC_LoadProcessInfo(proc, ldtSelector + (i << 3), KRNL_SELECTORS_USRL(0), KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_USRL(8),
+				KRNL_SELECTORS_USRL(8), KRNL_SELECTORS_SYSG(KRNL_LSELECTOR_VIDEO), KRNL_SELECTORS_USRL(8), task_table[i].task_eip,
+				task_table[i].stack_ptr + task_table[i].stack_size, 0x202);
+			KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
+				LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+		}
+		
 		proc->priority = task_table[i].priority;
 		proc->remaining_ticks = proc->priority;
 	}
@@ -284,7 +296,11 @@ VOID kernel_main() {
 	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_0);
 	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_1);
 	printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
-	AF_VMBreakPoint();
+	//AF_VMBreakPoint();
+
+	//键盘Locks
+	
+
 	//键盘ScanCode映射初始化
 	KC_KB_InitScanCodeMapping();
 	KRNL_KB_CtrlL=0;
@@ -297,6 +313,11 @@ VOID kernel_main() {
 	KRNL_KB_NumLock=0;
 	KRNL_KB_CapLock=0;
 	KRNL_KB_ScrollLock=0;
+
+	KRNL_KB_CapLock = 0;
+	KRNL_KB_NumLock = 1;
+	KRNL_KB_ScrollLock = 0;
+	KC_KB_SetLED();
 	//任务表
 	load_task_table();
 

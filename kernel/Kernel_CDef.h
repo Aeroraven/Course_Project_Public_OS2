@@ -341,6 +341,16 @@ typedef VOID* SYSCALL;
 
 #define KRNL_KB_PAD_ENTER (0x30 + KRNL_KB_FLAG_EXT)
 
+#define KRNL_KB_FLAG_BREAK	0x0080		/* Break Code			*/
+#define KRNL_KB_FLAG_EXT2	0x0100		/* Normal function keys		*/
+#define KRNL_KB_FLAG_SHIFT_L	0x0200		/* Shift key			*/
+#define KRNL_KB_FLAG_SHIFT_R	0x0400		/* Shift key			*/
+#define KRNL_KB_FLAG_CTRL_L	0x0800		/* Control key			*/
+#define KRNL_KB_FLAG_CTRL_R	0x1000		/* Control key			*/
+#define KRNL_KB_FLAG_ALT_L	0x2000		/* Alternate key		*/
+#define KRNL_KB_FLAG_ALT_R	0x4000		/* Alternate key		*/
+#define KRNL_KB_FLAG_PAD	0x8000		/* keys in num pad		*/
+
 #define KRNL_KB_ESC		(0x01 + KRNL_KB_FLAG_EXT)	
 #define KRNL_KB_TAB		(0x02 + KRNL_KB_FLAG_EXT)	
 #define KRNL_KB_ENTER		(0x03 + KRNL_KB_FLAG_EXT)	
