@@ -14,6 +14,7 @@
 
 VOID KC_KB_KeyboardHandler(DWORD);
 VOID KC_CON_OutputChar(CONSOLE*, CHAR);
+VOID KC_TTY_SysCallWrite(TTY*, CHAR*, DWORD);
 
 //----------------------------
 //    中断处理
@@ -114,6 +115,14 @@ VOID KC_InitTSS() {
 DWORD KCHD_SysCall_GetTick() {
 	return K_Ticks;
 }
+
+DWORD KCHD_SysCall_ConWrite(CHAR* buf,DWORD len, PROCESS* proc) {
+	if (proc->tty_id == KRNL_PROC_TTY_NULL) {
+		return;
+	}
+	KC_TTY_SysCallWrite(&KRNL_TTY_Table[proc->tty_id], buf, len);
+}
+
 VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
 	syscall_table[id] = handler;
 }
@@ -259,6 +268,14 @@ VOID KC_TTY_Init(TTY* tp) {
 VOID KC_TTY_InitCon() {
 	KRNL_TTY_Table[0].bound_con->disp_buf = KRNL_CON_VFrameBuffer_0;
 	KRNL_TTY_Table[1].bound_con->disp_buf = KRNL_CON_VFrameBuffer_1;
+}
+
+VOID KC_TTY_SysCallWrite(TTY* tty, CHAR* buf, DWORD len) {
+	CHAR* p = buf;
+	DWORD i = len;
+	while (i--) {
+		KC_CON_OutputChar(tty->bound_con, *p++);
+	}
 }
 
 VOID KC_CON_SelectConsole(DWORD idx) {
@@ -1000,4 +1017,40 @@ VOID KC_KB_InitScanCodeMapping() {
 	KRNL_KeyMap[382] = 0;
 	KRNL_KeyMap[383] = 0;
 
+}
+
+//----------------------------
+//    控制台输出
+//----------------------------
+
+DWORD CSTD_vsprintf(CHAR* buffer, CONST CHAR* format_string, VA_LIST arg) {
+	CHAR* p;
+	CHAR tmp[KRNL_CON_OUTPUT_BUFSIZE];
+	VA_LIST carg = arg;
+	for (p = buffer; *format_string; format_string++) {
+		if (*format_string != '%') {
+			*p++ = *format_string;
+			//format_string++;
+			continue;
+		}
+		format_string++;
+		switch (*format_string) {
+			default:
+				continue;
+		}
+
+	}
+	return (p - buffer);
+}
+
+DWORD CSTD_printf(CONST CHAR* format_string,...) {
+	CHAR buffer[KRNL_CON_OUTPUT_BUFSIZE];
+	VA_LIST arg;
+	VA_START(arg, format_string);
+	DWORD i = CSTD_vsprintf(buffer, format_string, arg);
+
+	//KCEX_PrintFormat("(%d)", i);
+
+	SYSCALL_ConWrite(buffer, i);
+	return i;
 }

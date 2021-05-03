@@ -30,7 +30,7 @@ VOID kernel_start() {
 	KRNL_DISP_ActivatedBuffer = &KRNL_CON_VFrameBuffer_0;
 
 
-	printf("Buf:%x\n", 1234);
+	//printf("Buf:%x\n", 1234);
 	//¸´ÖÆGDT
 	AF_SaveGlobalDescriptorTable((GDTPTR)GDT_ptr);
 	AF_MemoryCopy(&GDT, (ANYPTR)(*((UDWORD*)(&GDT_ptr[2]))), *((UWORD*)(&GDT_ptr[0]) + 1));
@@ -204,7 +204,7 @@ VOID hello_world() {
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
 		//printf("%d", SYSCALL_GetTick());
-		//printf("A");
+		printf("A");
 
 		//printf("%d,", KeyBoardRead());
 		//keyboard_scancode_read();
@@ -216,7 +216,7 @@ VOID hello_world_b() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		//printf("B");
+		printf("B");
 	}
 }
 VOID hello_world_c() {
@@ -243,7 +243,7 @@ VOID load_task_table() {
 
 VOID load_multi_task() {
 	SELECTOR_W ldtSelector = KRNL_LSELECTOR_NXT;
-	printf("\n");
+	//printf("\n");
 	for (DWORD i = 0; i < KRNL_PROC_MAXCNT; i++) {
 		PROCESS* proc = &ProcessTable[i];
 		if (task_table[i].privilege == KRNL_PROC_RINGPRIV_TSK) {
@@ -268,9 +268,15 @@ VOID load_multi_task() {
 		proc->priority = task_table[i].priority;
 		proc->remaining_ticks = proc->priority;
 	}
+	ProcessTable[0].tty_id = 0;
+	ProcessTable[1].tty_id = 1;
+	ProcessTable[2].tty_id = 1;
+	ProcessTable[3].tty_id = KRNL_PROC_TTY_NULL;
+
 }
 VOID set_syscall() {
 	KC_SysCall_Establish(0, KCHD_SysCall_GetTick);
+	KC_SysCall_Establish(1, KCHD_SysCall_ConWrite);
 }
 
 VOID set_irq() {
@@ -293,9 +299,9 @@ VOID kernel_main() {
 	//Çå¿Õ»º³åÇø
 	KC_VESA_ClearBuffer(KRNL_VESA_FrameBuffer, sizeof(KRNL_VESA_FrameBuffer)/sizeof(VESA_PIXEL));
 	
-	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_0);
-	printf("Buf:%x\n", KRNL_CON_VFrameBuffer_1);
-	printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
+	//printf("Buf:%x\n", KRNL_CON_VFrameBuffer_0);
+	//printf("Buf:%x\n", KRNL_CON_VFrameBuffer_1);
+	//printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
 	//AF_VMBreakPoint();
 
 	//¼üÅÌLocks

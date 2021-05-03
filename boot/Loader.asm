@@ -257,7 +257,7 @@ LABEL_FILE_LOADED:
 	INT10_ScrollUp 0, CONST_BINT_WHITE_FG|CONST_BINT_BLACK_BG, 0x0, 0xffff
 
 
-	BREAK_PT
+	;BREAK_PT
 	;VESA VGAœ‘¥Ê…Ë÷√
 	mov ax,0x4f02
 	mov bx,CONST_VESA_DISPLAY_MODE
@@ -627,7 +627,7 @@ LABEL_PROGRAM_PROTECTMODE_START:
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
 FUNC_VESATest:
-	xchg bx,bx
+	;xchg bx,bx
 	mov ecx,0xcfffffff
 	mov edi,0
 testHere:

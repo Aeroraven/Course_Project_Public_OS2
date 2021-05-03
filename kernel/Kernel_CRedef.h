@@ -10,11 +10,15 @@
 #include "Kernel_CDef.h"
 #include "Kernel_CExt.h"
 
+//deprecated
+#define ar_printf KCEX_PrintFormat
+
 //C-Style
 
 //cstdio
 #define putchar KCEX_PutChar
-#define printf KCEX_PrintFormat
+//#define printf KCEX_PrintFormat
+#define printf CSTD_printf
 
 //cstdlib
 #define itoa KCEX_IntToChar

@@ -10,6 +10,10 @@
 //变量声明
 #define EXTERN extern
 
+//调用定义
+#define CDECL _cdecl
+#define STDCALL _stdcall
+
 //类型定义
 typedef unsigned int UDWORD; 		//双字，等效于unsigned int
 typedef unsigned short UWORD;	//字，等效于unsigned short
@@ -246,6 +250,8 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 #define KRNL_PROC_RINGPRIV_USR 3
 #define KRNL_PROC_RINGPRIV_TSK 1
 
+#define KRNL_PROC_TTY_NULL -1
+
 
 typedef UDWORD PROC_PID;
 typedef struct s_stackframe {
@@ -278,6 +284,8 @@ typedef struct s_task_struct {
 	DWORD priority;
 	PROC_PID pid;
 	CHAR proc_name[KRNL_PROC_NAME_LEN];
+
+	DWORD tty_id;
 }PROCESS;
 
 typedef struct s_task {
@@ -321,10 +329,15 @@ typedef struct s_tss {
 
 //----------------------系统调用----------------------------
 typedef VOID* SYSCALL;
-#define KRNL_SYSCALL_COUNTS 1
+#define KRNL_SYSCALL_COUNTS 2
 #define KRNL_SYSCALL_IDX_GETTICK 0x0
+#define KRNL_SYSCALL_IDX_CONWRITE 0x1
+
+#define KRNL_SYSCALL_VEC 0x90
+
 
 #define KRNL_SYSCALL_VEC_GETTICK 0x90
+
 
 //----------------------计时器------------------------------
 #define KRNL_HARDWARE_TIMERMODE 0x43
@@ -458,6 +471,7 @@ typedef VESA_FRAMEBUFFER DISPLAY_BUFFER;
 //----------------------控制台------------------------------
 #define KRNL_TTY_BUF_SIZE 256
 #define KRNL_CON_COUNT 2
+#define KRNL_CON_OUTPUT_BUFSIZE  KRNL_TTY_BUF_SIZE
 
 typedef struct CONSOLE_S {
 	DWORD ch_row;

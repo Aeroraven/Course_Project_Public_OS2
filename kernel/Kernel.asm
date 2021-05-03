@@ -136,6 +136,7 @@ global AFE_INT_16
 
 global SystemCall
 global SYSCALL_GetTick
+global SYSCALL_ConWrite
 
 AFE_EXCEPTION_DE:
 	push 0x0
@@ -240,10 +241,23 @@ SYSCALL_GetTick:
 	int 0x90
 	ret
 
+SYSCALL_ConWrite:
+	mov eax,0x01
+	mov ebx,[esp+4]
+	mov ecx,[esp+8]
+	;xchg bx,bx
+	int 0x90
+	ret
+
 SystemCall:
 	call Save
+	push dword [ProcessReady]
 	sti
+	push ecx
+	push ebx
 	call [syscall_table+eax*4]
+	add esp,4*3
+
 	mov [esi+44],eax
 	cli
 	ret
