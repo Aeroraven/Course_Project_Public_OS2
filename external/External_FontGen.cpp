@@ -16,7 +16,7 @@ int main() {
 	of.open("total.txt");
 #define H 19
 #define W 12
-	for (int i = 0; i < 128; i++) {
+	for (int i = 0x20; i <= 0x7e; i++) {
 		Mat* cvMat = new Mat(H, W, CV_8UC3);
 		//HersheyFonts
 		stringstream ss;
@@ -28,7 +28,7 @@ int main() {
 		int baseline;
 		int w = getTextSize(ss.str().c_str(), FONT_HERSHEY_SIMPLEX,0.5, 1, &baseline).width;
 		
-		
+		cv::String a;
 		putText(*cvMat, ss.str().c_str(), { 6-w/2,13 }, FONT_HERSHEY_SIMPLEX, 0.5, { 0, 0, 0 }, 1);
 		imshow("hello", *cvMat);
 		rs << ".bmp";
@@ -45,7 +45,6 @@ int main() {
 				}
 				
 			}
-			//of << endl;
 		}
 		
 		delete cvMat;
