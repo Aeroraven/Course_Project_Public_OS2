@@ -16,6 +16,87 @@ VOID KC_KB_KeyboardHandler(DWORD);
 VOID KC_CON_OutputChar(CONSOLE*, CHAR);
 VOID KC_TTY_SysCallWrite(TTY*, CHAR*, DWORD);
 
+DWORD CSTD_printf(CONST CHAR* format_string, ...);
+
+//----------------------------
+//    断言
+//----------------------------
+
+#define KC_Assert(exp) if(!(exp))KC_AssertFail(#exp,__FILE__,__BASE_FILE__,__LINE__);
+#define KC_Proc2Pid(x) (x - ProcessTable)
+#define KC_PrintL CSTD_printf
+
+DWORD KC_LDT_SEG_Linear( PROCESS* p, DWORD idx)
+{
+	DESCRIPTOR* d = &p->ldt[idx];
+
+	return d->base_high << 24 | d->base_mid << 16 | d->base_low;
+}
+VOID* KC_VA2LA(DWORD pid, VOID* va)
+{
+	PROCESS* p = &ProcessTable[pid];
+	DWORD seg_base = KC_LDT_SEG_Linear(p, 1);
+	DWORD la = seg_base + (DWORD)va;
+	if (pid < KRNL_PROC_MAXCNT) {
+		KC_Assert(la == (DWORD)va);
+	}
+	return (VOID*)la;
+}
+
+VOID KC_AssertFail(CHAR * exp, CHAR * file, CHAR * basefile, DWORD line) {
+	KC_PrintL("%c  Assert(%s) Failed:\n File:%s Basefile:%s",
+		KRNL_MAG_CH_ASSERT, exp, file, basefile, line);
+	while (1);
+}
+
+DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
+	CONST CHAR* p;
+	CHAR ch;
+	CHAR reenter_error[] = "? K_Reenter Is Incorrect!";
+	reenter_error[0] = KRNL_MAG_CH_PANIC;
+
+	
+	if (K_IntReenter == 0) {
+		p = KC_VA2LA(KC_Proc2Pid(proc), s);
+	}
+	else if (K_IntReenter > 0) {
+		p = s;
+	}
+	else {
+		p = reenter_error;
+	}
+
+	if ((*p == KRNL_MAG_CH_PANIC) || (*p == KRNL_MAG_CH_ASSERT && ProcessReady->privilege == KRNL_PROC_RINGPRIV_TSK)) {
+	//if ((*p == KRNL_MAG_CH_PANIC) || (*p == KRNL_MAG_CH_ASSERT)) {
+		GCCASM_INTEL_SYNTAX;
+		asm("cli");
+		CONST CHAR* q = p + 1;
+		DWORD r = 0;
+		DWORD c = 0;
+		while (*q) {
+			if ((*q) == '\n') {
+				q++;
+				r++;
+				c = 0;
+			}
+			else {
+				AF_VMBreakPoint();
+				KC_VESA_PutChar(*q++, r, c++, 255, 255, 255);
+		
+			}
+			
+			
+		}
+		asm("hlt");
+	}
+	
+	while ((ch = *p++) != 0) {
+		if (ch == KRNL_MAG_CH_PANIC || ch == KRNL_MAG_CH_ASSERT) {
+			continue;
+		}
+		KC_CON_OutputChar(KRNL_TTY_Table[proc->tty_id].bound_con, ch);
+	}
+}
 //----------------------------
 //    中断处理
 //----------------------------
@@ -67,7 +148,6 @@ VOID KC_LoadDescriptor(DESCRIPTOR* p_desc, UDWORD base, UDWORD limit, UWORD attr
 
 VOID KC_LoadProcessInfo(PROCESS* proc, SELECTOR_W ldt_selector, SELECTOR_S cs, SELECTOR_S ds, SELECTOR_S es, SELECTOR_S fs,
 	SELECTOR_S gs, SELECTOR_S ss, HANDLER proc_entry, DWORD stack_address, DWORD eflag) {
-	//AF_VMBreakPoint();
 	proc->ldt_selector = ldt_selector;
 	proc->regs.cs = KRNL_LDSREG_S(cs);
 	proc->regs.ds = KRNL_LDSREG_S(ds);
@@ -78,7 +158,6 @@ VOID KC_LoadProcessInfo(PROCESS* proc, SELECTOR_W ldt_selector, SELECTOR_S cs, S
 	proc->regs.eip = (UDWORD)proc_entry;
 	proc->regs.esp = stack_address;
 	proc->regs.eflags = eflag;
-	//AF_VMBreakPoint();
 }
 VOID KC_DuplicateDescriptor(DESCRIPTOR* dest, DESCRIPTOR* src) {
 	AF_MemoryCopy(dest, src, sizeof(DESCRIPTOR));
@@ -126,6 +205,34 @@ DWORD KCHD_SysCall_ConWrite(CHAR* buf,DWORD len, PROCESS* proc) {
 VOID KC_SysCall_Establish(UDWORD id, VOID* handler) {
 	syscall_table[id] = handler;
 }
+
+VOID KCHD_SysCall_SendRec(DWORD function, DWORD src_dst, MESSAGE* m, PROCESS* proc) {
+	KC_Assert(K_IntReenter == 0);
+	KC_Assert((src_dst >= 0 && src_dst < KRNL_PROC_MAXTASKCNT) || src_dst == KRNL_SNDREC_ANY || src_dst == KRNL_SNDREC_INTERRUPT);
+	DWORD ret = 0;
+	DWORD caller = KC_Proc2Pid(proc);
+	MESSAGE* mla = (MESSAGE*)KC_VA2LA(caller, m);
+	mla->source = caller;
+
+	KC_Assert(mla->source != src_dst);
+	if (function == KRNL_SNDREC_SEND) {
+		//ret = KC_MessageSend(proc, src_dst, m);
+		if (ret != 0) {
+			return ret;
+		}
+	}
+	else if (function == KRNL_SNDREC_RECEIVE) {
+		//ret = KC_MessageReceive(proc, src_dst, m);
+		if (ret != 0) {
+			return ret;
+		}
+	}
+	else {
+		//KC_Panic("{SendRec} Invalid Function: %d (Send:%d, Receive%d)", function, KRNL_SNDREC_SEND, KRNL_SNDREC_RECEIVE);
+	}
+
+}
+//VOID KCHD_SysCall_SendRec(DWORD func,DWORD src_dst)
 //----------------------------
 //    进程和作业
 //----------------------------
@@ -193,8 +300,8 @@ VOID KC_VESA_SwitchBuffer(VESA_FRAMEBUFFER fb) {
 
 VOID KC_VESA_PutChar(CHAR ch, DWORD row, DWORD col, UBYTE r, UBYTE g, UBYTE b) {
 	DWORD basex = row * VESA_FONT_ROWS, basey = col * VESA_FONT_COLS;
-	for (int i = basex; i < basex + VESA_FONT_ROWS; i++) {
-		for (int j = basey; j < basey + VESA_FONT_COLS; j++) {
+	for (DWORD i = basex; i < basex + VESA_FONT_ROWS; i++) {
+		for (DWORD j = basey; j < basey + VESA_FONT_COLS; j++) {
 			if (KRNL_VIDEO_CHARMAP[ch][(i - basex) * VESA_FONT_COLS + (j - basey)] == 1) {
 				KC_VESA_PutPixel(i, j, r, g, b);
 			}
@@ -370,7 +477,7 @@ VOID KC_TTY_Write(TTY* tp) {
 		tp->input_buffer.front %= KRNL_TTY_BUF_SIZE;
 		
 		KC_CON_OutputChar(tp->bound_con, ch);
-		//AF_VMBreakPoint();
+		
 	}
 	
 }
@@ -383,11 +490,14 @@ VOID KC_TTY_CyclicExecution() {
 	KC_TTY_InitCon();
 	KRNL_CON_CurConsole = 0;
 	KC_CON_SelectConsole(0);
+
 	while (1) {
 		for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
 			KC_TTY_Read(tp);
 			KC_TTY_Write(tp);
+			KC_Assert(0);
 		}
+		
 	}
 }
 
@@ -397,7 +507,6 @@ DWORD KC_CON_IsActiveConsole(CONSOLE* con) {
 		
 		return TRUE;
 	}
-	//AF_VMBreakPoint();
 	return FALSE;
 }
 
@@ -492,7 +601,6 @@ VOID KC_KB_ScancodeRead(TTY* tp) {
 			int shift_cap = KRNL_KB_ShiftL | KRNL_KB_ShiftR;
 			if (KRNL_KB_CapLock) {
 				if (krow[0] >= 'a' && krow[0] <= 'z') {
-					//AF_VMBreakPoint();
 					kcol = !kcol;
 				}
 			}
@@ -526,7 +634,6 @@ VOID KC_KB_ScancodeRead(TTY* tp) {
 					break;
 				case KRNL_KB_CAPS_LOCK:
 					if (isMake) {
-						//AF_VMBreakPoint();
 						KRNL_KB_CapLock = !KRNL_KB_CapLock;
 						KC_KB_SetLED();
 					}
@@ -1034,12 +1141,26 @@ DWORD CSTD_vsprintf(CHAR* buffer, CONST CHAR* format_string, VA_LIST arg) {
 			continue;
 		}
 		format_string++;
+		CHAR tmp;
+		CHAR* tmp2;
 		switch (*format_string) {
+			case 'c':
+				tmp = VA_ARG(carg, CHAR);
+				*p++ = tmp;
+				break;
+			case 's':
+				tmp2 = VA_ARG(carg, CHAR*);
+				while (*tmp2) {
+					*p++ = *tmp2++;
+				}
+				
+				break;
 			default:
 				continue;
 		}
 
 	}
+	*p = 0;
 	return (p - buffer);
 }
 
@@ -1050,7 +1171,7 @@ DWORD CSTD_printf(CONST CHAR* format_string,...) {
 	DWORD i = CSTD_vsprintf(buffer, format_string, arg);
 
 	//KCEX_PrintFormat("(%d)", i);
-
-	SYSCALL_ConWrite(buffer, i);
+	buffer[i] = 0;
+	SYSCALL_ConWriteX(buffer);
 	return i;
 }
