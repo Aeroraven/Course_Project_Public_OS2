@@ -113,7 +113,7 @@ VOID AF_LTRAxCall(SELECTOR_W selector_task);
 DWORD SYSCALL_GetTick();
 DWORD SYSCALL_ConWrite(CHAR* buf, DWORD len);
 DWORD SYSCALL_ConWriteX(CHAR* buf);
-
+DWORD SYSCALL_SendRec(DWORD function, DWORD src_dest, MESSAGE* msg);
 VOID AF_VESA_PutPixel(DWORD position, DWORD blue, DWORD green, DWORD red);
 
 VOID AF_VESA_ScreenMemPaste(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);

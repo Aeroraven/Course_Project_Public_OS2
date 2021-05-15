@@ -58,6 +58,7 @@ extern CHAR TestStack[KRNL_PROC_SINGLESTACK];
 extern CHAR TestStack2[KRNL_PROC_SINGLESTACK];
 extern CHAR TestStack3[KRNL_PROC_SINGLESTACK];
 extern CHAR TestStack4[KRNL_PROC_SINGLESTACK];
+extern CHAR TestStack5[KRNL_PROC_SINGLESTACK];
 
 extern TSS tss;
 extern PROCESS* ProcessReady;

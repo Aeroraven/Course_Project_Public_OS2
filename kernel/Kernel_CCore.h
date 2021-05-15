@@ -104,6 +104,215 @@ DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
 		KC_CON_OutputChar(KRNL_TTY_Table[proc->tty_id].bound_con, ch);
 	}
 }
+
+//----------------------------
+//    进程间通信
+//----------------------------
+VOID KC_IPC_ResetMessage(MESSAGE* m) {
+	CHAR* p = (CHAR*)m;
+	for (DWORD i = 1; i < sizeof(MESSAGE); i++) {
+		p[i] = 0;
+	}
+}
+VOID KC_IPC_BlockProc(PROCESS* p) {
+	KC_Assert(p->pflags);
+	KC_ProcessSchedule();
+}
+VOID KC_IPC_UnblockProc(PROCESS* p) {
+	KC_Assert(p->pflags == 0);
+}
+DWORD KC_IPC_Deadlock(DWORD src, DWORD dest) {
+	PROCESS* p = ProcessTable + dest;
+	while (1) {
+		if (p->pflags & KRNL_SNDREC_SEND) {
+			if (p->pSendTo == src) {
+				p = ProcessTable + dest;
+				KC_PrintL("=%s", p->proc_name);
+				do {
+					KC_Assert(p->pMsg);
+					p = ProcessTable + p->pSendTo;
+					KC_PrintL("->%s", p->proc_name);
+				} while (p != ProcessTable + src);
+				KC_PrintL("=");
+				return 1;
+			}
+			p = ProcessTable + p->pSendTo;
+		}
+		else {
+			break;
+		}
+	}
+	return 0;
+}
+DWORD KC_IPC_MessageSend(PROCESS* current, DWORD dest, MESSAGE* m) {
+	PROCESS* sender = current, * pDest = ProcessTable + dest;
+	KC_Assert(KC_Proc2Pid(sender) != dest);
+	if (KC_IPC_Deadlock(KC_Proc2Pid(sender), dest)) {
+		KC_Panic("[DEADLOCK]");
+	}
+	if ((pDest->pflags & KRNL_SNDREC_RECEIVE) &&
+		(pDest->pRecvFrom == KC_Proc2Pid(sender) ||
+			pDest->pRecvFrom == KRNL_SNDREC_ANY)) {
+		KC_Assert(pDest->pMsg);
+		KC_Assert(m);
+		AF_MemoryCopy(KC_VA2LA(dest, pDest->pMsg), KC_VA2LA(KC_Proc2Pid(sender), m), sizeof(MESSAGE));
+		pDest->pMsg = 0;
+		pDest->pflags &= ~KRNL_SNDREC_RECEIVE;
+		pDest->pRecvFrom = KRNL_SNDREC_NOTASK;
+		KC_IPC_UnblockProc(pDest);
+
+		KC_Assert(pDest->pflags == 0);
+		KC_Assert(pDest->pMsg == 0);
+		KC_Assert(pDest->pRecvFrom == KRNL_SNDREC_NOTASK);
+		KC_Assert(pDest->pSendTo == KRNL_SNDREC_NOTASK);
+
+		KC_Assert(sender->pflags == 0);
+		KC_Assert(sender->pMsg == 0);
+		KC_Assert(sender->pRecvFrom == KRNL_SNDREC_NOTASK);
+		KC_Assert(sender->pSendTo == KRNL_SNDREC_NOTASK);
+	}
+	else {
+		sender->pflags |= KRNL_SNDREC_SEND;
+		KC_Assert(sender->pflags == KRNL_SNDREC_SEND);
+		sender->pSendTo = dest;
+		sender->pMsg = m;
+		PROCESS* p;
+		if (pDest->qSending) {
+			p = pDest->qSending;
+			while (p->nextSending) {
+				p = p->nextSending;
+			}
+			p->nextSending = sender;
+		}
+		else {
+			pDest->qSending = sender;
+		}
+		sender->nextSending = 0;
+		KC_IPC_BlockProc(sender);
+
+		KC_Assert(sender->pflags == KRNL_SNDREC_SEND);
+		KC_Assert(sender->pMsg != 0);
+		KC_Assert(sender->pRecvFrom == KRNL_SNDREC_NOTASK);
+		KC_Assert(sender->pSendTo == dest);
+	}
+	return 0;
+}
+DWORD KC_IPC_MessageReceive(PROCESS* current, DWORD src, MESSAGE* m) {
+	PROCESS* pWannaRecv = current;
+	PROCESS* pFrom = 0;
+	PROCESS* pPrev = 0;
+	DWORD CopyDone = 0;
+	KC_Assert(KC_Proc2Pid(pWannaRecv) != src);
+	if((pWannaRecv->hasIntMsg)&&
+		((src == KRNL_SNDREC_ANY) || (src == KRNL_SNDREC_INTERRUPT))) {
+		MESSAGE msg;
+		KC_IPC_ResetMessage(&msg);
+		msg.source = KRNL_SNDREC_INTERRUPT;
+		msg.type = KRNL_SNDREC_HARD_INT;
+		KC_Assert(m);
+		AF_MemoryCopy(KC_VA2LA(KC_Proc2Pid(pWannaRecv), m), &msg, sizeof(MESSAGE));
+		pWannaRecv->hasIntMsg = 0;
+		KC_Assert(pWannaRecv->pflags == 0);
+		KC_Assert(pWannaRecv->pMsg == 0);
+		KC_Assert(pWannaRecv->pSendTo = KRNL_SNDREC_NOTASK);
+		KC_Assert(pWannaRecv->hasIntMsg == 0);
+		return 0;
+	}
+	if (src == KRNL_SNDREC_ANY) {
+		if (pWannaRecv->qSending) {
+			pFrom = pWannaRecv->qSending;
+			CopyDone = 1;
+			KC_Assert(pWannaRecv->pflags == 0);
+			KC_Assert(pWannaRecv->pMsg == 0);
+			KC_Assert(pWannaRecv->pRecvFrom == KRNL_SNDREC_NOTASK);
+			KC_Assert(pWannaRecv->pSendTo == KRNL_SNDREC_NOTASK);
+			KC_Assert(pWannaRecv->qSending == KRNL_SNDREC_NOTASK);
+			KC_Assert(pFrom->pflags == KRNL_SNDREC_SEND);
+			KC_Assert(pFrom->pMsg != 0);
+			KC_Assert(pFrom->pRecvFrom == KRNL_SNDREC_NOTASK);
+			KC_Assert(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv));
+		}
+	}
+	else {
+		pFrom = &ProcessTable[src];
+		if ((pFrom->pflags & KRNL_SNDREC_SEND) &&
+			(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv))) {
+			CopyDone = 1;
+			PROCESS* p = pWannaRecv->qSending;
+			KC_Assert(p);
+			while (p) {
+				KC_Assert(pFrom->pflags & KRNL_SNDREC_SEND);
+				if (KC_Proc2Pid(p) == src) {
+					pFrom = p;
+					break;
+				}
+				pPrev = p;
+				p = p->nextSending;
+			}
+			KC_Assert(pWannaRecv->pflags == 0);
+			KC_Assert(pWannaRecv->pMsg == 0);
+			KC_Assert(pWannaRecv->pRecvFrom == KRNL_SNDREC_NOTASK);
+			KC_Assert(pWannaRecv->pSendTo == KRNL_SNDREC_NOTASK);
+			KC_Assert(pWannaRecv->qSending != 0);
+			KC_Assert(pFrom->pflags == KRNL_SNDREC_SEND);
+			KC_Assert(pFrom->pMsg != 0);
+			KC_Assert(pFrom->pRecvFrom = KRNL_SNDREC_NOTASK);
+			KC_Assert(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv));
+		}
+	}
+	if (CopyDone) {
+		if (pFrom == pWannaRecv->qSending) {
+			KC_Assert(pPrev == 0);
+			pWannaRecv->qSending == pFrom->nextSending;
+			pFrom->nextSending = 0;
+		}
+		else {
+			KC_Assert(pPrev);
+			pPrev->nextSending = pFrom->nextSending;
+			pFrom->nextSending = 0;
+		}
+		KC_Assert(m);
+		KC_Assert(pFrom->pMsg);
+		AF_MemoryCopy(KC_VA2LA(KC_Proc2Pid(pWannaRecv), m), KC_VA2LA(KC_Proc2Pid(pFrom), pFrom->pMsg), sizeof(MESSAGE));
+		pFrom->pMsg = 0;
+		pFrom->pSendTo = KRNL_SNDREC_NOTASK;
+		pFrom->pflags &= ~KRNL_SNDREC_SEND;
+		KC_IPC_UnblockProc(pFrom);
+	}
+	else {
+		pWannaRecv->pflags |= KRNL_SNDREC_RECEIVE;
+		pWannaRecv->pMsg = m;
+		if (src == KRNL_SNDREC_ANY) {
+			pWannaRecv->pRecvFrom = KRNL_SNDREC_ANY;
+		}
+		else {
+			pWannaRecv->pRecvFrom = KC_Proc2Pid(pFrom);
+		}
+		KC_IPC_BlockProc(pWannaRecv);
+		KC_Assert(pWannaRecv->pflags == KRNL_SNDREC_RECEIVE);
+		KC_Assert(pWannaRecv->pMsg != 0);
+		KC_Assert(pWannaRecv->pRecvFrom != KRNL_SNDREC_NOTASK);
+		KC_Assert(pWannaRecv->pSendTo == KRNL_SNDREC_NOTASK);
+		KC_Assert(pWannaRecv->hasIntMsg == 0);
+	}
+	return 0;
+}
+VOID KC_TaskSystem() {
+	MESSAGE msg;
+	while (1) {
+		KC_IPC_SendRecv(KRNL_SNDREC_RECEIVE, KRNL_SNDREC_ANY, &msg);
+		DWORD src = msg.source;
+		switch (msg.type) {
+			case KRNL_TASKSYS_GET_TICKS:
+				msg.RETVAL = K_Ticks;
+				KC_IPC_SendRecv(KRNL_SNDREC_SEND, src, &msg);
+				break;
+			default:
+				KC_Panic("Unknown Msg Type");
+				break;
+		}
+	}
+}
 //----------------------------
 //    中断处理
 //----------------------------
@@ -198,7 +407,15 @@ VOID KC_InitTSS() {
 //----------------------------
 //    系统调用
 //----------------------------
+DWORD KC_IPC_GetTick() {
+	MESSAGE msg;
+	KC_IPC_ResetMessage(&msg);
+	msg.type = KRNL_TASKSYS_GET_TICKS;
+	KC_IPC_SendRecv(KRNL_SNDREC_BOTH, KRNL_PROC_TASK_SYS, &msg);
+	return msg.RETVAL;
+}
 DWORD KCHD_SysCall_GetTick() {
+	
 	return K_Ticks;
 }
 
@@ -223,21 +440,46 @@ VOID KCHD_SysCall_SendRec(DWORD function, DWORD src_dst, MESSAGE* m, PROCESS* pr
 
 	KC_Assert(mla->source != src_dst);
 	if (function == KRNL_SNDREC_SEND) {
-		//ret = KC_MessageSend(proc, src_dst, m);
+		ret = KC_IPC_MessageSend(proc, src_dst, m);
 		if (ret != 0) {
 			return ret;
 		}
 	}
 	else if (function == KRNL_SNDREC_RECEIVE) {
-		//ret = KC_MessageReceive(proc, src_dst, m);
+		ret = KC_IPC_MessageReceive(proc, src_dst, m);
 		if (ret != 0) {
 			return ret;
 		}
 	}
 	else {
-		//KC_Panic("{SendRec} Invalid Function: %d (Send:%d, Receive%d)", function, KRNL_SNDREC_SEND, KRNL_SNDREC_RECEIVE);
+		KC_Panic("{SendRec} Invalid Function: %d (Send:%d, Receive%d)", function, KRNL_SNDREC_SEND, KRNL_SNDREC_RECEIVE);
 	}
 
+}
+DWORD KC_IPC_SendRecv(DWORD function, DWORD src_dest, MESSAGE* msg)
+{
+	int ret = 0;
+
+	if (function == KRNL_SNDREC_RECEIVE) {
+		KC_IPC_ResetMessage(&msg);
+	}
+	switch (function) {
+		case (KRNL_SNDREC_RECEIVE| KRNL_SNDREC_SEND):
+			ret = SYSCALL_SendRec(KRNL_SNDREC_SEND, src_dest, msg);
+			if (ret == 0)
+				ret = SYSCALL_SendRec(KRNL_SNDREC_RECEIVE, src_dest, msg);
+			break;
+		case KRNL_SNDREC_SEND:
+		case KRNL_SNDREC_RECEIVE:
+			ret = SYSCALL_SendRec(function, src_dest, msg);
+			break;
+		default:
+			KC_Assert((function == (KRNL_SNDREC_RECEIVE | KRNL_SNDREC_SEND)) ||
+				(function == KRNL_SNDREC_SEND) || (function == KRNL_SNDREC_RECEIVE));
+			break;
+	}
+
+	return ret;
 }
 //VOID KCHD_SysCall_SendRec(DWORD func,DWORD src_dst)
 //----------------------------
@@ -269,14 +511,19 @@ VOID KC_ProcessSchedule() {
 	if (proc_cur->remaining_ticks == 0) {
 		while (!remaining_tick_max) {
 			for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
-				if (ProcessTable[i].remaining_ticks > remaining_tick_max) {
-					remaining_tick_max = ProcessTable[i].remaining_ticks;
-					ProcessReady = &ProcessTable[i];
+				if (ProcessTable[i].pflags == 0) {
+					if (ProcessTable[i].remaining_ticks > remaining_tick_max) {
+						remaining_tick_max = ProcessTable[i].remaining_ticks;
+						ProcessReady = &ProcessTable[i];
+					}
 				}
 			}
 			if (remaining_tick_max == 0) {
 				for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
-					ProcessTable[i].remaining_ticks = ProcessTable[i].priority;
+					if (ProcessTable[i].pflags == 0) {
+						ProcessTable[i].remaining_ticks = ProcessTable[i].priority;
+					}
+					
 				}
 			}
 		}
@@ -973,19 +1220,16 @@ VOID KC_KB_InitScanCodeMapping() {
 	KRNL_KeyMap[221] = 291;
 	KRNL_KeyMap[222] = 302;
 	KRNL_KeyMap[223] = 45;
-	KRNL_KeyMap[224] = 0;
 	KRNL_KeyMap[225] = 310;
 	KRNL_KeyMap[226] = 52;
 	KRNL_KeyMap[227] = 295;
 	KRNL_KeyMap[228] = 311;
 	KRNL_KeyMap[229] = 53;
-	KRNL_KeyMap[230] = 0;
 	KRNL_KeyMap[231] = 312;
 	KRNL_KeyMap[232] = 54;
 	KRNL_KeyMap[233] = 296;
 	KRNL_KeyMap[234] = 303;
 	KRNL_KeyMap[235] = 43;
-	KRNL_KeyMap[236] = 0;
 	KRNL_KeyMap[237] = 307;
 	KRNL_KeyMap[238] = 49;
 	KRNL_KeyMap[239] = 290;
@@ -1001,29 +1245,11 @@ VOID KC_KB_InitScanCodeMapping() {
 	KRNL_KeyMap[249] = 305;
 	KRNL_KeyMap[250] = 46;
 	KRNL_KeyMap[251] = 288;
-	KRNL_KeyMap[252] = 0;
-	KRNL_KeyMap[253] = 0;
-	KRNL_KeyMap[254] = 0;
-	KRNL_KeyMap[255] = 0;
-	KRNL_KeyMap[256] = 0;
-	KRNL_KeyMap[257] = 0;
-	KRNL_KeyMap[258] = 0;
-	KRNL_KeyMap[259] = 0;
-	KRNL_KeyMap[260] = 0;
 	KRNL_KeyMap[261] = 283;
 	KRNL_KeyMap[262] = 283;
 	KRNL_KeyMap[263] = 0;
 	KRNL_KeyMap[264] = 284;
 	KRNL_KeyMap[265] = 284;
-	KRNL_KeyMap[266] = 0;
-	KRNL_KeyMap[267] = 0;
-	KRNL_KeyMap[268] = 0;
-	KRNL_KeyMap[269] = 0;
-	KRNL_KeyMap[270] = 0;
-	KRNL_KeyMap[271] = 0;
-	KRNL_KeyMap[272] = 0;
-	KRNL_KeyMap[273] = 0;
-	KRNL_KeyMap[274] = 0;
 	KRNL_KeyMap[275] = 261;
 	KRNL_KeyMap[276] = 0;
 	KRNL_KeyMap[277] = 0;

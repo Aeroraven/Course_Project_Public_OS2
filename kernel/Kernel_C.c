@@ -203,6 +203,8 @@ VOID hello_world() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
+		printf("A");
+		//KC_IPC_GetTick();
 
 	}
 }
@@ -230,6 +232,9 @@ VOID load_task_table() {
 	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 2, KRNL_PROC_RINGPRIV_USR);
 	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 2, KRNL_PROC_RINGPRIV_USR);
 	KC_LoadTaskTable(3, KC_TTY_CyclicExecution, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, KRNL_PROC_RINGPRIV_TSK);
+	
+	KC_LoadTaskTable(4, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 2, KRNL_PROC_RINGPRIV_USR);
+	//KC_LoadTaskTable(4, KC_TaskSystem, KRNL_PROC_SINGLESTACK, "System", TestStack5, 20, KRNL_PROC_RINGPRIV_TSK);
 }
 
 VOID load_multi_task() {
@@ -237,6 +242,10 @@ VOID load_multi_task() {
 	//printf("\n");
 	for (DWORD i = 0; i < KRNL_PROC_MAXCNT; i++) {
 		PROCESS* proc = &ProcessTable[i];
+		proc->pflags = 0;
+		proc->qSending = 0;
+		proc->pSendTo = 0;
+		proc->nextSending = 0;
 		if (task_table[i].privilege == KRNL_PROC_RINGPRIV_TSK) {
 			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_TSK));
 			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[1]), KRNL_LSELECTOR_GENERALDATA, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_DRW, KRNL_PRIVL_TSK));
@@ -266,11 +275,12 @@ VOID load_multi_task() {
 	ProcessTable[1].tty_id = 1;
 	ProcessTable[2].tty_id = 1;
 	ProcessTable[3].tty_id = KRNL_PROC_TTY_NULL;
+	ProcessTable[4].tty_id = KRNL_PROC_TTY_NULL;
 
 }
 VOID set_syscall() {
-	KC_SysCall_Establish(0, KCHD_SysCall_GetTick);
-	KC_SysCall_Establish(1, KCHD_SysCall_ConWrite);
+	KC_SysCall_Establish(0, KCHD_SysCall_GetTick); 
+	KC_SysCall_Establish(1, KCHD_SysCall_ConWrite); //Deprecated
 	KC_SysCall_Establish(2, KCHD_SysCall_SendRec);
 	KC_SysCall_Establish(3, KCHD_SysCall_Printx);
 }
@@ -291,12 +301,13 @@ VOID test() {
 //KRNL开始
 VOID kernel_main() {
 	
-
 	KRNL_CON_CurConsole = 0;
 	K_Ticks = 0;
 	//清空缓冲区
+	AF_VMBreakPoint();
 	KC_VESA_ClearBuffer(KRNL_VESA_FrameBuffer, sizeof(KRNL_VESA_FrameBuffer)/sizeof(VESA_PIXEL));
 	
+	AF_VMBreakPoint();
 	//printf("Buf:%x\n", KRNL_CON_VFrameBuffer_0);
 	//printf("Buf:%x\n", KRNL_CON_VFrameBuffer_1);
 	//printf("Krn:%x\n", KRNL_VESA_FrameBuffer);
@@ -323,7 +334,9 @@ VOID kernel_main() {
 	KRNL_KB_ScrollLock = 0;
 	KC_KB_SetLED();
 	//任务表
+	
 	load_task_table();
+	
 
 	//TTY
 	
@@ -334,12 +347,16 @@ VOID kernel_main() {
 	//中断请求
 	set_irq();
 
+	
 	//系统调用
 	set_syscall();
 
 	//进程
 	load_multi_task();
 	KC_InitTSS();
+
+	
+
 	test();
 
 	//完成

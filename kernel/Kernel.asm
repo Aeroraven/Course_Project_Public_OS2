@@ -138,6 +138,7 @@ global SystemCall
 global SYSCALL_GetTick
 global SYSCALL_ConWrite
 global SYSCALL_ConWriteX
+global SYSCALL_SendRec
 
 AFE_EXCEPTION_DE:
 	push 0x0

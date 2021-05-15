@@ -53,6 +53,8 @@ typedef double DOUBLE;
 #define ARV_QUEUE(buffer_size,type) struct{DWORD front;DWORD end;type buffer[buffer_size];}
 
 //GDT/IDT描述符
+
+
 typedef struct DESCRIPTOR_s{
 	UWORD limit_low;
 	UWORD base_low;
@@ -239,10 +241,59 @@ typedef VOID(*IRQ_HANDLER)(DWORD argv);
 #define KRNL_INTTIPS_MF2 "#MF: Floating-point error"
 #define KRNL_INTTIPS_AC "#AC: Alignment check"
 #define KRNL_INTTIPS_UNKNOWN "#UN: Unknown Error"
+//----------------------进程间通信--------------------------
+struct mess1 {
+	int m1i1;
+	int m1i2;
+	int m1i3;
+	int m1i4;
+};
+struct mess2 {
+	void* m2p1;
+	void* m2p2;
+	void* m2p3;
+	void* m2p4;
+};
+struct mess3 {
+	int	m3i1;
+	int	m3i2;
+	int	m3i3;
+	int	m3i4;
+	UQWORD	m3l1;
+	UQWORD	m3l2;
+	void* m3p1;
+	void* m3p2;
+};
+typedef struct {
+	int source;
+	int type;
+	union {
+		struct mess1 m1;
+		struct mess2 m2;
+		struct mess3 m3;
+	} u;
+} MESSAGE;
+
+#define KRNL_SNDREC_SEND 1
+#define KRNL_SNDREC_RECEIVE 2
+#define KRNL_SNDREC_BOTH 3
+#define KRNL_SNDREC_INTERRUPT -10
+#define KRNL_SNDREC_ANY (KRNL_PROC_MAXCNT+10)
+#define KRNL_SNDREC_NOTASK (KRNL_PROC_MAXCNT+20)
+
+#define KRNL_SNDREC_HARD_INT 1
+#define KRNL_TASKSYS_GET_TICKS 2
+
+#define RETVAL u.m3.m3i1
+
+#define KRNL_MAG_CH_PANIC '\002'
+#define KRNL_MAG_CH_ASSERT '\003'
+
+#define KRNL_PROC_TASK_SYS 4
 
 //----------------------进程控制----------------------------
 #define KRNL_PROC_NAME_LEN 16
-#define KRNL_PROC_MAXCNT 4
+#define KRNL_PROC_MAXCNT 5
 #define KRNL_PROC_MAXTASKCNT KRNL_PROC_MAXCNT
 
 #define KRNL_PROC_SINGLESTACK 5000
@@ -289,6 +340,14 @@ typedef struct s_task_struct {
 
 	DWORD tty_id;
 	DWORD privilege;
+
+	DWORD hasIntMsg;
+	DWORD pflags;
+	MESSAGE* pMsg;
+	DWORD pRecvFrom;
+	DWORD pSendTo;
+	struct s_task_struct* qSending;
+	struct s_task_struct* nextSending;
 }PROCESS;
 
 typedef struct s_task {
@@ -490,43 +549,3 @@ typedef struct TTY_S {
 	CONSOLE* bound_con;
 }TTY;
 
-//----------------------进程间通信--------------------------
-struct mess1 {
-	int m1i1;
-	int m1i2;
-	int m1i3;
-	int m1i4;
-};
-struct mess2 {
-	void* m2p1;
-	void* m2p2;
-	void* m2p3;
-	void* m2p4;
-};
-struct mess3 {
-	int	m3i1;
-	int	m3i2;
-	int	m3i3;
-	int	m3i4;
-	UQWORD	m3l1;
-	UQWORD	m3l2;
-	void* m3p1;
-	void* m3p2;
-};
-typedef struct {
-	int source;
-	int type;
-	union {
-		struct mess1 m1;
-		struct mess2 m2;
-		struct mess3 m3;
-	} u;
-} MESSAGE;
-#define KRNL_SNDREC_SEND 1
-#define KRNL_SNDREC_RECEIVE 2
-#define KRNL_SNDREC_BOTH 3
-#define KRNL_SNDREC_INTERRUPT -10
-#define KRNL_SNDREC_ANY (KRNL_PROC_MAXCNT+10)
-
-#define KRNL_MAG_CH_PANIC '\002'
-#define KRNL_MAG_CH_ASSERT '\003'
