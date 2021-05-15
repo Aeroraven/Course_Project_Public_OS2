@@ -112,6 +112,7 @@ VOID AF_LTRAxCall(SELECTOR_W selector_task);
 // 系统调用：获取Tick
 DWORD SYSCALL_GetTick();
 DWORD SYSCALL_ConWrite(CHAR* buf, DWORD len);
+DWORD SYSCALL_ConWriteX(CHAR* buf);
 
 VOID AF_VESA_PutPixel(DWORD position, DWORD blue, DWORD green, DWORD red);
 

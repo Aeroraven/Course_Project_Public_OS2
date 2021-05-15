@@ -15,10 +15,12 @@
 #define STDCALL _stdcall
 
 //类型定义
+typedef unsigned long long UQWORD;
 typedef unsigned int UDWORD; 		//双字，等效于unsigned int
 typedef unsigned short UWORD;	//字，等效于unsigned short
 typedef unsigned char UBYTE;		//字节，等效于unsigned char;
 
+typedef long long QWORD;
 typedef int DWORD;		//双字，等效于int
 typedef short WORD;		//字，等效于short
 typedef char  BYTE;		//字节，等效于char
@@ -286,6 +288,7 @@ typedef struct s_task_struct {
 	CHAR proc_name[KRNL_PROC_NAME_LEN];
 
 	DWORD tty_id;
+	DWORD privilege;
 }PROCESS;
 
 typedef struct s_task {
@@ -329,9 +332,10 @@ typedef struct s_tss {
 
 //----------------------系统调用----------------------------
 typedef VOID* SYSCALL;
-#define KRNL_SYSCALL_COUNTS 2
+#define KRNL_SYSCALL_COUNTS 4
 #define KRNL_SYSCALL_IDX_GETTICK 0x0
 #define KRNL_SYSCALL_IDX_CONWRITE 0x1
+#define KRNL_SYSCALL_IDX_SENDREC 0x2 //Send/Receive原语
 
 #define KRNL_SYSCALL_VEC 0x90
 
@@ -469,7 +473,7 @@ typedef VESA_PIXEL* VESA_FRAMEBUFFER;
 typedef VESA_FRAMEBUFFER DISPLAY_BUFFER;
 
 //----------------------控制台------------------------------
-#define KRNL_TTY_BUF_SIZE 256
+#define KRNL_TTY_BUF_SIZE 1024
 #define KRNL_CON_COUNT 2
 #define KRNL_CON_OUTPUT_BUFSIZE  KRNL_TTY_BUF_SIZE
 
@@ -485,3 +489,44 @@ typedef struct TTY_S {
 
 	CONSOLE* bound_con;
 }TTY;
+
+//----------------------进程间通信--------------------------
+struct mess1 {
+	int m1i1;
+	int m1i2;
+	int m1i3;
+	int m1i4;
+};
+struct mess2 {
+	void* m2p1;
+	void* m2p2;
+	void* m2p3;
+	void* m2p4;
+};
+struct mess3 {
+	int	m3i1;
+	int	m3i2;
+	int	m3i3;
+	int	m3i4;
+	UQWORD	m3l1;
+	UQWORD	m3l2;
+	void* m3p1;
+	void* m3p2;
+};
+typedef struct {
+	int source;
+	int type;
+	union {
+		struct mess1 m1;
+		struct mess2 m2;
+		struct mess3 m3;
+	} u;
+} MESSAGE;
+#define KRNL_SNDREC_SEND 1
+#define KRNL_SNDREC_RECEIVE 2
+#define KRNL_SNDREC_BOTH 3
+#define KRNL_SNDREC_INTERRUPT -10
+#define KRNL_SNDREC_ANY (KRNL_PROC_MAXCNT+10)
+
+#define KRNL_MAG_CH_PANIC '\002'
+#define KRNL_MAG_CH_ASSERT '\003'

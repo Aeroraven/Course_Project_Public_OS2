@@ -19,10 +19,9 @@ VOID spurious_interrupt_request(UDWORD);
 VOID SystemCall();
 
 
-
-
 //初始化内核
 VOID kernel_start() {
+	
 	//显示初始化
 	KRNL_VESAFont_Row = 0;
 	KRNL_VESAFont_Col = 0;
@@ -157,7 +156,7 @@ VOID spurious_interrupt_request(UDWORD idx) {
 VOID initalize_interrupts() {
 	initialize_8259A();
 	//异常
-
+	
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_DIVIDE, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_DE, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_DEBUG, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_DB, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_NMI, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_NMI, KRNL_PRIVL_SYS);
@@ -176,6 +175,7 @@ VOID initalize_interrupts() {
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_COPROC_ERR, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_EXCEPTION_MF2, KRNL_PRIVL_SYS);
 
 	//硬件中断
+
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ0 + 0, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_0, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ0 + 1, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_1, KRNL_PRIVL_SYS);
 	KC_IDT_LoadGate(KRNL_INT_VECTOR_IRQ0 + 2, KRNL_DESCRIPTOR_ATTR_386IGate, AFE_INT_2, KRNL_PRIVL_SYS);
@@ -203,28 +203,20 @@ VOID hello_world() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		//printf("%d", SYSCALL_GetTick());
-		printf("A");
 
-		//printf("%d,", KeyBoardRead());
-		//keyboard_scancode_read();
 	}
 }
 
 VOID hello_world_b() {
 	while (1)
 	{
-		for (int i = 0; i < 2000; i++)
-			for (int k = 0; k < 200; k++);
-		printf("B");
+
 	}
 }
 VOID hello_world_c() {
 	while (1)
 	{
-		for (int i = 0; i < 2000; i++)
-			for (int k = 0; k < 200; k++);
-		//printf("C");
+
 	}
 }
 
@@ -237,7 +229,6 @@ VOID load_task_table() {
 	KC_LoadTaskTable(0, hello_world, KRNL_PROC_SINGLESTACK, "TaskA", TestStack, 2, KRNL_PROC_RINGPRIV_USR);
 	KC_LoadTaskTable(1, hello_world_b, KRNL_PROC_SINGLESTACK, "TaskB", TestStack2, 2, KRNL_PROC_RINGPRIV_USR);
 	KC_LoadTaskTable(2, hello_world_c, KRNL_PROC_SINGLESTACK, "TaskC", TestStack3, 2, KRNL_PROC_RINGPRIV_USR);
-	//KC_LoadTaskTable(3, task_tty, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, 3);
 	KC_LoadTaskTable(3, KC_TTY_CyclicExecution, KRNL_PROC_SINGLESTACK, "TTY", TestStack4, 20, KRNL_PROC_RINGPRIV_TSK);
 }
 
@@ -254,6 +245,8 @@ VOID load_multi_task() {
 				task_table[i].stack_ptr + task_table[i].stack_size, 0x1202);
 			KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
 				LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+			//AF_VMBreakPoint();
+			proc->privilege = KRNL_PROC_RINGPRIV_TSK;
 		}
 		else {
 			KC_DuplicateGlobalDescriptorEx(&(proc->ldt[0]), KRNL_LSELECTOR_GENERAL, KRNL_DA1(KRNL_DESCRIPTOR_ATTR_C, KRNL_PRIVL_USR));
@@ -263,6 +256,7 @@ VOID load_multi_task() {
 				task_table[i].stack_ptr + task_table[i].stack_size, 0x202);
 			KC_LoadDescriptor(&GDT[(ldtSelector + (i << 3)) >> 3], KC_GetPhyAddrBySeg(KRNL_LSELECTOR_GENERALDATA) + (UDWORD)(&proc->ldt),
 				LDT_SIZE * sizeof(DESCRIPTOR) - 1, KRNL_DESCRIPTOR_ATTR_LDT);
+			proc->privilege = KRNL_PROC_RINGPRIV_USR;
 		}
 		
 		proc->priority = task_table[i].priority;
@@ -277,6 +271,8 @@ VOID load_multi_task() {
 VOID set_syscall() {
 	KC_SysCall_Establish(0, KCHD_SysCall_GetTick);
 	KC_SysCall_Establish(1, KCHD_SysCall_ConWrite);
+	KC_SysCall_Establish(2, KCHD_SysCall_SendRec);
+	KC_SysCall_Establish(3, KCHD_SysCall_Printx);
 }
 
 VOID set_irq() {
@@ -294,6 +290,8 @@ VOID test() {
 
 //KRNL开始
 VOID kernel_main() {
+	
+
 	KRNL_CON_CurConsole = 0;
 	K_Ticks = 0;
 	//清空缓冲区

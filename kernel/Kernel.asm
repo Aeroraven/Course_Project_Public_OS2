@@ -137,6 +137,7 @@ global AFE_INT_16
 global SystemCall
 global SYSCALL_GetTick
 global SYSCALL_ConWrite
+global SYSCALL_ConWriteX
 
 AFE_EXCEPTION_DE:
 	push 0x0
@@ -221,9 +222,12 @@ AFE_EXCEPTION_XM:
 
 Save:
 	save_regs
+	mov esi,edx
 	mov dx,ss
 	mov ds,dx
 	mov es,dx
+	mov fs,dx
+	mov edx,esi
 	mov esi,esp
 	inc dword[K_IntReenter]
 	cmp dword[K_IntReenter],0
@@ -231,6 +235,7 @@ Save:
 	mov esp,StackTop
 	push Restart
 	jmp [esi+48]
+
 Save_1:
 	push Restart_Reenter
 	jmp [esi+48]
@@ -241,6 +246,8 @@ SYSCALL_GetTick:
 	int 0x90
 	ret
 
+
+
 SYSCALL_ConWrite:
 	mov eax,0x01
 	mov ebx,[esp+4]
@@ -249,15 +256,36 @@ SYSCALL_ConWrite:
 	int 0x90
 	ret
 
+SYSCALL_SendRec:
+	mov eax,0x02
+	mov ebx,[esp+4]
+	mov ecx,[esp+8]
+	mov edx,[esp+12]
+	int 0x90
+	ret
+
+
+SYSCALL_ConWriteX:
+	mov eax,0x03
+	;xchg bx,bx
+	mov edx,[esp+4]
+	int 0x90
+	ret
+
+
 SystemCall:
 	call Save
-	push dword [ProcessReady]
 	sti
+	push esi
+	push dword [ProcessReady]
+	
+	push edx
 	push ecx
 	push ebx
 	call [syscall_table+eax*4]
-	add esp,4*3
+	add esp,4*4
 
+	pop esi
 	mov [esi+44],eax
 	cli
 	ret

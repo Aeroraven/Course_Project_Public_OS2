@@ -3,8 +3,8 @@ load:
 	nasm -o loader.bin -I boot/ boot/loader.asm
 	nasm -f elf -o kernel.o -I kernel/ kernel/kernel.asm
 	nasm -f elf -o kernel_asmfunc.o -I kernel/ kernel/Kernel_AsmFunc.asm
-	gcc -m32 -c -o kernel_c.o kernel/Kernel_C.c -fno-stack-protector -O0 -fno-builtin -I kernel/ -masm=intel
-	gcc -m32 -c -o kernel_globalvar.o kernel/kernel_GlobalVar.c -fno-stack-protector -O0 -fno-builtin -I kernel/
+	gcc -m32 -c -o kernel_c.o kernel/Kernel_C.c -fno-stack-protector -O0 -fno-builtin -I kernel/ -masm=intel -O1
+	gcc -m32 -c -o kernel_globalvar.o kernel/kernel_GlobalVar.c -fno-stack-protector -O0 -fno-builtin -I kernel/ -O1
 
 	ld -m elf_i386 -s -Ttext 0x1000400  -o kernel.bin kernel.o kernel_asmfunc.o kernel_c.o kernel_globalvar.o
 

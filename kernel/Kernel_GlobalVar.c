@@ -30,7 +30,7 @@ SYSCALL syscall_table[KRNL_SYSCALL_COUNTS];
 TTY KRNL_TTY_Table[KRNL_CON_COUNT];
 CONSOLE KRNL_CON_Table[KRNL_CON_COUNT];
 
-KRNLM_VESA_DeclFrameBuffer(KRNL_VESA_FrameBuffer);
+//KRNLM_VESA_DeclFrameBuffer(KRNL_VESA_FrameBuffer);
 
 KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer_0);
 KRNLM_VESA_DeclFrameBuffer(KRNL_CON_VFrameBuffer_1);
