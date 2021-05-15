@@ -182,7 +182,7 @@ CONST_MEMORYPG_USU				EQU	4	; U/S 属性位值, 用户级
 ;----------------------------------			
 ; Kernel 加载地址
 ;----------------------------------
-CONST_KERNEL_BaseAddr				equ 0x7000				;Kernel 加载段地址
+CONST_KERNEL_BaseAddr				equ 0x1000				;Kernel 加载段地址
 CONST_KERNEL_OffsetAddr				equ 0x0					;Kernel 加载地址偏移
 CONST_KERNEL_BasePhyAddr			equ CONST_KERNEL_BaseAddr * 0x10 ;Kernel 加载段地址物理地址	
 

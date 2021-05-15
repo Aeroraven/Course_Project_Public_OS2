@@ -25,6 +25,16 @@ DWORD CSTD_printf(CONST CHAR* format_string, ...);
 #define KC_Assert(exp) if(!(exp))KC_AssertFail(#exp,__FILE__,__BASE_FILE__,__LINE__);
 #define KC_Proc2Pid(x) (x - ProcessTable)
 #define KC_PrintL CSTD_printf
+VOID KC_Panic(CONST CHAR * format, ...) {
+	DWORD i;
+	CHAR buffer[KCEX_PRINTF_BUFFERSIZE];
+	VA_LIST arg;
+	VA_START(arg, format);
+	i = CSTD_vsprintf(buffer, format, arg);
+	KC_PrintL("%c !!panic!! %s", KRNL_MAG_CH_PANIC, buffer);
+	while (1);
+	asm("ud2");
+}
 
 DWORD KC_LDT_SEG_Linear( PROCESS* p, DWORD idx)
 {
@@ -67,7 +77,6 @@ DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
 	}
 
 	if ((*p == KRNL_MAG_CH_PANIC) || (*p == KRNL_MAG_CH_ASSERT && ProcessReady->privilege == KRNL_PROC_RINGPRIV_TSK)) {
-	//if ((*p == KRNL_MAG_CH_PANIC) || (*p == KRNL_MAG_CH_ASSERT)) {
 		GCCASM_INTEL_SYNTAX;
 		asm("cli");
 		CONST CHAR* q = p + 1;
@@ -80,9 +89,7 @@ DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
 				c = 0;
 			}
 			else {
-				AF_VMBreakPoint();
 				KC_VESA_PutChar(*q++, r, c++, 255, 255, 255);
-		
 			}
 			
 			
@@ -495,7 +502,7 @@ VOID KC_TTY_CyclicExecution() {
 		for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
 			KC_TTY_Read(tp);
 			KC_TTY_Write(tp);
-			KC_Assert(0);
+			KC_Panic("WRONG");
 		}
 		
 	}

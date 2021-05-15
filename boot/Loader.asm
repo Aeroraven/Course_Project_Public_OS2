@@ -257,7 +257,7 @@ LABEL_FILE_LOADED:
 	INT10_ScrollUp 0, CONST_BINT_WHITE_FG|CONST_BINT_BLACK_BG, 0x0, 0xffff
 
 
-	;BREAK_PT
+	; BREAK_PT
 	;VESA VGA显存设置
 	mov ax,0x4f02
 	mov bx,CONST_VESA_DISPLAY_MODE
@@ -623,7 +623,9 @@ LABEL_PROGRAM_PROTECTMODE_START:
 
 	;内存分页
 	call FUNC_MemoryPaging
+	xchg bx,bx
 	call FUNC_RearrangeKernel
+	xchg bx,bx
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
 FUNC_VESATest:
@@ -807,6 +809,7 @@ FUNC_DisplayResetPM:
 ;		DS   数据段选择子
 ;返回:	EAX  0
 ;C：		DWORD MemoryCopy(DWORD destPtr,DWORD sourcePtr,DWORD size)
+
 FUNC_MemoryCopy:
 	push ebp
 	mov ebp,esp
@@ -879,25 +882,24 @@ FUNC_MemoryPaging:
 ;参考: Forrest Yu
 FUNC_RearrangeKernel:
 	xor	esi, esi
-	mov	cx, word [CONST_KERNEL_BasePhyAddr + 2Ch]; 
-	movzx	ecx, cx
-	mov	esi, [CONST_KERNEL_BasePhyAddr + 1Ch]	
-	add	esi, CONST_KERNEL_BasePhyAddr
+	mov	cx, word [CONST_KERNEL_BasePhyAddr + 2Ch]; ┓ ecx <- pELFHdr->e_phnum
+	movzx	ecx, cx					; ┛
+	mov	esi, [CONST_KERNEL_BasePhyAddr + 1Ch]	; esi <- pELFHdr->e_phoff
+	add	esi, CONST_KERNEL_BasePhyAddr		; esi <- OffsetOfKernel + pELFHdr->e_phoff
 .Begin:
 	mov	eax, [esi + 0]
-	cmp	eax, 0		
+	cmp	eax, 0				; PT_NULL
 	jz	.NoAction
-	push	dword [esi + 010h]		
-	mov	eax, [esi + 04h]		
-	add	eax, CONST_KERNEL_BasePhyAddr
-	push eax
-	push dword [esi + 08h]
-	;BREAK_PT
-	call FUNC_MemoryCopy
-	;BREAK_PT
-	add	esp, 12	
+	push	dword [esi + 010h]		; size	┓
+	mov	eax, [esi + 04h]		;	┃
+	add	eax, CONST_KERNEL_BasePhyAddr	;	┣ ::memcpy(	(void*)(pPHdr->p_vaddr),
+	push	eax				; src	┃		uchCode + pPHdr->p_offset,
+	push	dword [esi + 08h]		; dst	┃		pPHdr->p_filesz;
+	call	FUNC_MemoryCopy				;	┃
+	add	esp, 12				;	┛
 .NoAction:
-	add	esi, 020h
+	add	esi, 020h			; esi += pELFHdr->e_phentsize
 	dec	ecx
 	jnz	.Begin
+
 	ret

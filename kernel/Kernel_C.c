@@ -19,8 +19,6 @@ VOID spurious_interrupt_request(UDWORD);
 VOID SystemCall();
 
 
-
-
 //³õÊ¼»¯ÄÚºË
 VOID kernel_start() {
 	
@@ -205,28 +203,20 @@ VOID hello_world() {
 	{
 		for (int i = 0; i < 2000; i++)
 			for (int k = 0; k < 200; k++);
-		//printf("%d", SYSCALL_GetTick());
-		//printf("A");
 
-		//printf("%d,", KeyBoardRead());
-		//keyboard_scancode_read();
 	}
 }
 
 VOID hello_world_b() {
 	while (1)
 	{
-		for (int i = 0; i < 2000; i++)
-			for (int k = 0; k < 200; k++);
-		//printf("B");
+
 	}
 }
 VOID hello_world_c() {
 	while (1)
 	{
-		for (int i = 0; i < 2000; i++)
-			for (int k = 0; k < 200; k++);
-		//printf("C");
+
 	}
 }
 
