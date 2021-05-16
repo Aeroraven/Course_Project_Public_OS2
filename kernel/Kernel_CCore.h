@@ -11,6 +11,7 @@
 #include "Kernel_IncFunc.h"
 #include "Kernel_GlobalVar.h"
 #include "Kernel_VESACharMap.h"
+#include "Kernel_CExt.h"
 
 VOID KC_KB_KeyboardHandler(DWORD);
 VOID KC_CON_OutputChar(CONSOLE*, CHAR);
@@ -31,7 +32,7 @@ VOID KC_Panic(CONST CHAR * format, ...) {
 	VA_LIST arg;
 	VA_START(arg, format);
 	i = CSTD_vsprintf(buffer, format, arg);
-	KC_PrintL("%c !!panic!! %s", KRNL_MAG_CH_PANIC, buffer);
+	KC_PrintL("%c\n !!panic!! %s", KRNL_MAG_CH_PANIC, buffer);
 	while (1);
 	asm("ud2");
 }
@@ -116,6 +117,7 @@ VOID KC_IPC_ResetMessage(MESSAGE* m) {
 }
 VOID KC_IPC_BlockProc(PROCESS* p) {
 	KC_Assert(p->pflags);
+	p->remaining_ticks = 1;
 	KC_ProcessSchedule();
 }
 VOID KC_IPC_UnblockProc(PROCESS* p) {
@@ -156,6 +158,7 @@ DWORD KC_IPC_MessageSend(PROCESS* current, DWORD dest, MESSAGE* m) {
 		KC_Assert(pDest->pMsg);
 		KC_Assert(m);
 		AF_MemoryCopy(KC_VA2LA(dest, pDest->pMsg), KC_VA2LA(KC_Proc2Pid(sender), m), sizeof(MESSAGE));
+		
 		pDest->pMsg = 0;
 		pDest->pflags &= ~KRNL_SNDREC_RECEIVE;
 		pDest->pRecvFrom = KRNL_SNDREC_NOTASK;
@@ -233,7 +236,7 @@ DWORD KC_IPC_MessageReceive(PROCESS* current, DWORD src, MESSAGE* m) {
 			KC_Assert(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv));
 		}
 	}
-	else {
+	else if(src>=0&&src<KRNL_PROC_MAXCNT) {
 		pFrom = &ProcessTable[src];
 		if ((pFrom->pflags & KRNL_SNDREC_SEND) &&
 			(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv))) {
@@ -260,6 +263,8 @@ DWORD KC_IPC_MessageReceive(PROCESS* current, DWORD src, MESSAGE* m) {
 			KC_Assert(pFrom->pSendTo == KC_Proc2Pid(pWannaRecv));
 		}
 	}
+	
+
 	if (CopyDone) {
 		if (pFrom == pWannaRecv->qSending) {
 			KC_Assert(pPrev == 0);
@@ -280,14 +285,11 @@ DWORD KC_IPC_MessageReceive(PROCESS* current, DWORD src, MESSAGE* m) {
 		KC_IPC_UnblockProc(pFrom);
 	}
 	else {
+		
+
 		pWannaRecv->pflags |= KRNL_SNDREC_RECEIVE;
 		pWannaRecv->pMsg = m;
-		if (src == KRNL_SNDREC_ANY) {
-			pWannaRecv->pRecvFrom = KRNL_SNDREC_ANY;
-		}
-		else {
-			pWannaRecv->pRecvFrom = KC_Proc2Pid(pFrom);
-		}
+		pWannaRecv->pRecvFrom = src;
 		KC_IPC_BlockProc(pWannaRecv);
 		KC_Assert(pWannaRecv->pflags == KRNL_SNDREC_RECEIVE);
 		KC_Assert(pWannaRecv->pMsg != 0);
@@ -299,8 +301,12 @@ DWORD KC_IPC_MessageReceive(PROCESS* current, DWORD src, MESSAGE* m) {
 }
 VOID KC_TaskSystem() {
 	MESSAGE msg;
+	
 	while (1) {
+		//AF_VMBreakPoint();
 		KC_IPC_SendRecv(KRNL_SNDREC_RECEIVE, KRNL_SNDREC_ANY, &msg);
+		
+		//AF_VMBreakPoint();
 		DWORD src = msg.source;
 		switch (msg.type) {
 			case KRNL_TASKSYS_GET_TICKS:
@@ -458,10 +464,11 @@ VOID KCHD_SysCall_SendRec(DWORD function, DWORD src_dst, MESSAGE* m, PROCESS* pr
 }
 DWORD KC_IPC_SendRecv(DWORD function, DWORD src_dest, MESSAGE* msg)
 {
+	
 	int ret = 0;
 
 	if (function == KRNL_SNDREC_RECEIVE) {
-		KC_IPC_ResetMessage(&msg);
+		KC_IPC_ResetMessage(msg);
 	}
 	switch (function) {
 		case (KRNL_SNDREC_RECEIVE| KRNL_SNDREC_SEND):
@@ -508,15 +515,24 @@ VOID KC_ProcessSchedule() {
 	PROCESS* proc;
 	PROCESS* proc_cur = ProcessReady;
 	DWORD remaining_tick_max = 0;
-	if (proc_cur->remaining_ticks == 0) {
+	//KCEX_PrintFormat("I:%d", ProcessReady - ProcessTable);
+
+	if (proc_cur->remaining_ticks <= 0 || proc_cur->pflags!=0) {
 		while (!remaining_tick_max) {
 			for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
 				if (ProcessTable[i].pflags == 0) {
 					if (ProcessTable[i].remaining_ticks > remaining_tick_max) {
 						remaining_tick_max = ProcessTable[i].remaining_ticks;
 						ProcessReady = &ProcessTable[i];
+						//KCEX_PrintFormat("Select%d: TimeRem=%d\n", i, ProcessTable[i].remaining_ticks);
+
+					}
+					else {
+						//KCEX_PrintFormat("Ingore%d: TimeRem=%d\n", i, ProcessTable[i].remaining_ticks);
+
 					}
 				}
+				
 			}
 			if (remaining_tick_max == 0) {
 				for (DWORD i = 0; i < KRNL_PROC_MAXTASKCNT; i++) {
@@ -527,7 +543,10 @@ VOID KC_ProcessSchedule() {
 				}
 			}
 		}
+		///KCEX_PrintFormat("[Switch-%d]", ProcessReady - ProcessTable);
+
 	}
+	
 }
 //----------------------------
 //    显示
@@ -749,7 +768,7 @@ VOID KC_TTY_CyclicExecution() {
 		for (tp = KRNL_TTY_Table; tp < KRNL_TTY_Table + KRNL_CON_COUNT; tp++) {
 			KC_TTY_Read(tp);
 			KC_TTY_Write(tp);
-			KC_Panic("WRONG");
+			//KC_Panic("WRONG");
 		}
 		
 	}
@@ -1264,6 +1283,23 @@ VOID KC_KB_InitScanCodeMapping() {
 //    控制台输出
 //----------------------------
 
+CHAR* CSTDEX_NCConversionRec(CHAR* buffer, DWORD n, DWORD base) {
+	CHAR base_map[16] = { '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
+	DWORD x = n % base;
+	if (n / base != 0)
+	{
+		buffer=CSTDEX_NCConversionRec(buffer, n / base, base);
+	}
+	else if (n < 0)
+	{
+		*buffer++ = '-';
+	}
+	x = (x < 0) ? -x : x;
+	*buffer++ = base_map[x];
+	return buffer;
+}
+
+
 DWORD CSTD_vsprintf(CHAR* buffer, CONST CHAR* format_string, VA_LIST arg) {
 	CHAR* p;
 	CHAR tmp[KRNL_CON_OUTPUT_BUFSIZE];
@@ -1277,6 +1313,7 @@ DWORD CSTD_vsprintf(CHAR* buffer, CONST CHAR* format_string, VA_LIST arg) {
 		format_string++;
 		CHAR tmp;
 		CHAR* tmp2;
+		DWORD tmp3;
 		switch (*format_string) {
 			case 'c':
 				tmp = VA_ARG(carg, CHAR);
@@ -1288,6 +1325,18 @@ DWORD CSTD_vsprintf(CHAR* buffer, CONST CHAR* format_string, VA_LIST arg) {
 					*p++ = *tmp2++;
 				}
 				
+				break;
+			case 'd':
+				tmp3 = VA_ARG(carg, DWORD);
+				p=CSTDEX_NCConversionRec(p, tmp3, 10);
+				break;
+			case 'x':
+				tmp3 = VA_ARG(carg, DWORD);
+				p=CSTDEX_NCConversionRec(p, tmp3, 16);
+				break;
+			case 'o':
+				tmp3 = VA_ARG(carg, DWORD);
+				p=CSTDEX_NCConversionRec(p, tmp3, 8);
 				break;
 			default:
 				continue;

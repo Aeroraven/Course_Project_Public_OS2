@@ -348,6 +348,8 @@ typedef struct s_task_struct {
 	DWORD pSendTo;
 	struct s_task_struct* qSending;
 	struct s_task_struct* nextSending;
+
+	DWORD pBlocked;
 }PROCESS;
 
 typedef struct s_task {
