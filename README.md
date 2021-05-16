@@ -5,5 +5,9 @@ A tiny operating system project, referencing  ForrestYu's [OrangeS](https://gith
 
 Chapter 8 - Goal 1: Assertion & Panic (Completed)
 
-Chapter 8 - Goal 2: Message Send & Message Receive (In Progress - Debugging)
+Chapter 8 - Goal 2: Message Send & Message Receive (Completed - Debugging)
+
+**Chapter 9: File System**
+
+Chapter 9 - Goal 1: Establishing Hard Driver Task (In Progress)
 
