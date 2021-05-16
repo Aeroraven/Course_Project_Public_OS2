@@ -623,9 +623,9 @@ LABEL_PROGRAM_PROTECTMODE_START:
 
 	;ÄÚ´æ·ÖÒ³
 	call FUNC_MemoryPaging
-	xchg bx,bx
+	;xchg bx,bx
 	call FUNC_RearrangeKernel
-	xchg bx,bx
+	;xchg bx,bx
 	jmp dword SELECTOR_GENERAL:CONST_KERNEL_Entry
 
 FUNC_VESATest:

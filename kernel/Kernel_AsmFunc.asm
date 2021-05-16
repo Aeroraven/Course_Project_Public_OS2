@@ -88,6 +88,7 @@ global AF_VESA_ScreenMemClear
 global AF_VESA_ScreenMemPasteDWord
 
 global AF_FastMemcpy
+global AF_PortRead
 
 ;函数 AF_MemoryCopy [保护模式] - 内存复制
 ;参数：	PUSH (dd)目标指针
@@ -407,4 +408,14 @@ AF_SystemCallInt:
 	;int ebx
 	pop ebx
 	pop ebp
+	ret
+
+
+AF_PortRead:
+	mov	edx, [esp + 4]		; port
+	mov	edi, [esp + 4 + 4]	; buf
+	mov	ecx, [esp + 4 + 4 + 4]	; n
+	shr	ecx, 1
+	cld
+	rep	insw
 	ret

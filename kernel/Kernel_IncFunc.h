@@ -120,6 +120,8 @@ VOID AF_VESA_ScreenMemPaste(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);
 VOID AF_VESA_ScreenMemClear(ANYPTR destPtr, UDWORD size);
 VOID AF_VESA_ScreenMemPasteDWord(ANYPTR destPtr, ANYPTR sourcePtr, UDWORD size);
 
+VOID AF_PortRead(UWORD port, VOID* buf, DWORD n);
+
 
 //----------------------------------------
 //	异常和中断(函数定义在 Kernel_AsmFunc.asm中)

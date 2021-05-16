@@ -92,8 +92,6 @@ DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
 			else {
 				KC_VESA_PutChar(*q++, r, c++, 255, 255, 255);
 			}
-			
-			
 		}
 		asm("hlt");
 	}
@@ -104,6 +102,120 @@ DWORD KCHD_SysCall_Printx(DWORD _unu1, DWORD _unu2, CHAR* s, PROCESS* proc) {
 		}
 		KC_CON_OutputChar(KRNL_TTY_Table[proc->tty_id].bound_con, ch);
 	}
+}
+//----------------------------
+//    硬盘
+//----------------------------
+VOID KC_TaskHardDrive() {
+	MESSAGE msg;
+	KC_HD_InitHardDrive();
+	while (1) {
+		KC_IPC_SendRecv(KRNL_SNDREC_RECEIVE, KRNL_SNDREC_ANY, &msg);
+		int src = msg.source;
+		switch (msg.type) {
+			case KRNL_HDTASK_DEV_OPEN:
+				KC_HD_Identify(0);
+				break;
+			default:
+				KC_Panic("HDTask:Unknown Msg");
+				while (1);
+		}
+		KC_IPC_SendRecv(KRNL_SNDREC_SEND, src, &msg);
+	}
+}
+
+VOID KC_HD_HardDriveHandler(DWORD irq) {
+
+}
+VOID KC_HD_InitHardDrive() {
+	UBYTE* iDriverNums = (UBYTE*)0x475;
+	KC_PrintL("NrDrives:%d", *iDriverNums);
+	KC_Assert(*iDriverNums);
+	KC_IRQ_Establish(KRNL_HARDWARE_AT_WINI_IRQ, KC_HD_HardDriveHandler);
+	KC_IRQ_Enable(KRNL_HARDWARE_AT_WINI_IRQ);
+	KC_IRQ_Enable(KRNL_HARDWARE_CASCADE_IRQ);
+	
+}
+VOID KC_HD_Identify(DWORD drive){
+	HDCMD cmd;
+	cmd.device = KRNL_HD_MAKE_DEVICE_REG(0, drive, 0);
+	cmd.command = KRNL_HD_ATA_IDENTIFY;
+	KC_HD_CMDOut(&cmd);
+	KC_HD_InterruptWait();
+
+	AF_PortRead(KRNL_HD_REG_DATA, HDBuffer, KRNL_HD_SECTOR_SIZE);
+
+	KC_HD_PrintIdentityInfo((UWORD*)HDBuffer);
+}
+VOID KC_HD_PrintIdentityInfo(WORD* hdinfo){
+	DWORD i, k;
+	CHAR s[64];
+
+	struct iden_info_ascii {
+		DWORD idx;
+		DWORD len;
+		CHAR* desc;
+	} iinfo[] = { {10, 20, "HD SN"}, {27, 40, "HD Model"} };
+
+	for (k = 0; k < sizeof(iinfo) / sizeof(iinfo[0]); k++) {
+		CHAR* p = (CHAR*)&hdinfo[iinfo[k].idx];
+		for (i = 0; i < iinfo[k].len / 2; i++) {
+			s[i * 2 + 1] = *p++;
+			s[i * 2] = *p++;
+		}
+		s[i * 2] = 0;
+		KC_PrintL("%s: %s\n", iinfo[k].desc, s);
+	}
+
+	DWORD capabilities = hdinfo[49];
+	KC_PrintL("LBA supported: %s\n",
+		(capabilities & 0x0200) ? "Yes" : "No");
+
+	DWORD cmd_set_supported = hdinfo[83];
+	KC_PrintL("LBA48 supported: %s\n",
+		(cmd_set_supported & 0x0400) ? "Yes" : "No");
+
+	DWORD sectors = ((DWORD)hdinfo[61] << 16) + hdinfo[60];
+	KC_PrintL("HD size: %dMB\n", sectors * 512 / 1000000);
+}
+VOID KC_HD_CMDOut(HDCMD* cmd){
+	if (!KC_HD_Waitfor(KRNL_HD_STATUS_BSY, 0, KRNL_HD_TIMEOUT))
+		KC_Panic("hd error.");
+	
+	AF_OutPort(KRNL_HD_REG_DEV_CTRL, 0);
+	AF_OutPort(KRNL_HD_REG_FEATURES, cmd->features);
+	AF_OutPort(KRNL_HD_REG_NSECTOR, cmd->count);
+	AF_OutPort(KRNL_HD_REG_LBA_LOW, cmd->lba_low);
+	AF_OutPort(KRNL_HD_REG_LBA_MID, cmd->lba_mid);
+	AF_OutPort(KRNL_HD_REG_LBA_HIGH, cmd->lba_high);
+	AF_OutPort(KRNL_HD_REG_DEVICE, cmd->device);
+	AF_OutPort(KRNL_HD_REG_CMD, cmd->command);
+}
+
+VOID KC_HD_InterruptWait(){
+	MESSAGE msg;
+	KC_IPC_SendRecv(KRNL_SNDREC_RECEIVE, KRNL_SNDREC_INTERRUPT, &msg);
+}
+
+DWORD KC_HD_Waitfor(DWORD mask, DWORD val, DWORD timeout){
+	DWORD t = KC_IPC_GetTick();
+	
+	while (((KC_IPC_GetTick() - t) * 1000 / KRNL_HARDWARE_TIMER_HZ) < timeout)
+		if ((AF_InPort(KRNL_HD_REG_STATUS) & mask) == val)
+			return 1;
+
+	return 0;
+}
+//----------------------------
+//    文件系统
+//----------------------------
+
+VOID KC_TaskFS() {
+	KC_PrintL("FileSystem Task Begin\n");
+	MESSAGE drvMsg;
+	drvMsg.type = KRNL_HDTASK_DEV_OPEN;
+	KC_IPC_SendRecv(KRNL_SNDREC_BOTH, KRNL_PROC_TASK_HD, &drvMsg);
+	while (1);
 }
 
 //----------------------------

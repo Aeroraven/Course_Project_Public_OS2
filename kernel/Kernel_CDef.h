@@ -283,6 +283,7 @@ typedef struct {
 
 #define KRNL_SNDREC_HARD_INT 1
 #define KRNL_TASKSYS_GET_TICKS 2
+#define KRNL_HDTASK_DEV_OPEN 3
 
 #define RETVAL u.m3.m3i1
 
@@ -290,6 +291,8 @@ typedef struct {
 #define KRNL_MAG_CH_ASSERT '\003'
 
 #define KRNL_PROC_TASK_SYS 4
+#define KRNL_PROC_TASK_TTY 3
+#define KRNL_PROC_TASK_HD 2
 
 //----------------------½ø³Ì¿ØÖÆ----------------------------
 #define KRNL_PROC_NAME_LEN 16
@@ -410,6 +413,61 @@ typedef VOID* SYSCALL;
 #define KRNL_HARDWARE_TIMER_RATEGEN 0x34
 #define KRNL_HARDWARE_TIMER_FREQ 1193182L
 #define KRNL_HARDWARE_TIMER_HZ 100
+
+//----------------------Ó²ÅÌ--------------------------------
+#define KRNL_HARDWARE_AT_WINI_IRQ 14
+#define KRNL_HARDWARE_CASCADE_IRQ  2
+
+#define KRNL_HD_REG_DATA	0x1F0		
+#define KRNL_HD_REG_FEATURES	0x1F1		
+#define KRNL_HD_REG_ERROR	KRNL_HD_REG_FEATURES
+
+#define KRNL_HD_REG_NSECTOR	0x1F2		
+#define KRNL_HD_REG_LBA_LOW	0x1F3		
+#define KRNL_HD_REG_LBA_MID	0x1F4		
+#define KRNL_HD_REG_LBA_HIGH	0x1F5		
+#define KRNL_HD_REG_DEVICE	0x1F6
+
+#define KRNL_HD_REG_STATUS	0x1F7
+
+#define	KRNL_HD_STATUS_BSY	0x80
+#define	KRNL_HD_STATUS_DRDY	0x40
+#define	KRNL_HD_STATUS_DFSE	0x20
+#define	KRNL_HD_STATUS_DSC	0x10
+#define	KRNL_HD_STATUS_DRQ	0x08
+#define	KRNL_HD_STATUS_CORR	0x04
+#define	KRNL_HD_STATUS_IDX	0x02
+#define	KRNL_HD_STATUS_ERR	0x01
+
+#define KRNL_HD_REG_CMD		KRNL_HD_REG_STATUS
+
+#define  KRNL_HD_REG_DEV_CTRL	0x3F6
+#define KRNL_HD_REG_ALT_STATUS	KRNL_HD_REG_DEV_CTRL
+#define KRNL_HD_REG_DRV_ADDR	0x3F7
+
+#define	 KRNL_HD_TIMEOUT		10000
+
+#define	 KRNL_HD_PARTITION_TABLE_OFFSET	0x1BE
+#define  KRNL_HD_ATA_IDENTIFY		0xEC
+#define  KRNL_HD_ATA_READ		0x20
+#define  KRNL_HD_ATA_WRITE		0x30
+
+#define	 KRNL_HD_MAKE_DEVICE_REG(lba,drv,lba_highest) (((lba) << 6) |		\
+					      ((drv) << 4) |		\
+					      (lba_highest & 0xF) | 0xA0)
+
+#define  KRNL_HD_SECTOR_SIZE		512
+#define  KRNL_HD_SECTOR_BITS		( KRNL_HD_SECTOR_SIZE * 8)
+#define  KRNL_HD_SECTOR_SIZE_SHIFT	9
+typedef struct hd_cmd {
+	UBYTE	features;
+	UBYTE	count;
+	UBYTE	lba_low;
+	UBYTE	lba_mid;
+	UBYTE	lba_high;
+	UBYTE	device;
+	UBYTE	command;
+}HDCMD;
 
 //----------------------É¨ÃèÂë------------------------------
 #define KRNL_HW_KB_SCANCODE_CNT = 0x7F
